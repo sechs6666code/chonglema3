@@ -1,73 +1,62 @@
-# 石碑打卡 Demo · Design QA
+# 石碑打卡 · 正式网页 Design QA
 
 ## Evidence
 
-- Source visual truth:
-  - `public/assets/scene/source/stone.jpg`
-  - `public/assets/scene/source/mark-success.jpg`
-  - `public/assets/scene/source/mark-broken.jpg`
-  - `public/assets/scene/source/level-1-wilted.jpg`
-  - `public/assets/scene/source/level-2-sparse.jpg`
-  - `public/assets/scene/source/level-3-normal.jpg`
-  - `public/assets/scene/source/level-4-lush.jpg`
-  - `public/assets/scene/source/level-5-blooming.jpg`
-- Browser-rendered implementation screenshot: `/home/oai/share/implementation-phone.png`
-- Browser stage screenshot: `/home/oai/share/browser-stage.png`
-- Combined source/implementation comparison: `/home/oai/share/qa-comparison.png`
-- Focused date-anchor evidence: `qa/date-anchor-preview.jpg`
-- Target viewport: iPhone content viewport, `393 × 852` CSS px, device scale factor `1`
-- Browser capture: `360.52 × 781.59` px at template stage scale `0.91735`, cropped from a `1363 × 936` browser screenshot and normalized to `393 × 852` px for comparison
-- Source pixels: background and mark source files are approximately `1024 × 1536`; processed stone is `944 × 1454`
-- State: clean first-use state, day 27 selected, no records, level 3 / 正常
+- Source visual truth: `/workspace/scratch/b64449f8d5b4/upload/89542562-7F95-46E6-949F-BBB19C496069.jpeg`
+- Browser-rendered implementation screenshot: `/home/oai/share/chonglema3-qa-standalone-final.jpg`
+- Cloud browser implementation URL: `http://terminal.local:4173/`
+- Source pixels: `709 × 1536`
+- Implementation pixels and CSS viewport: `1363 × 936`, device scale factor `1`
+- State: 2026-07-27, day 27 selected, no saved records, level 3 / 正常
+- Comparison intent: the source screenshot documents the incorrect preview-shell state; the target is the same app-owned scene and controls rendered as a normal full-viewport webpage.
 
 ## Findings
 
-- No actionable P0, P1, or P2 differences remained.
-- Fonts and typography: the title, compact status chip, date status, and action labels remain readable over the photographic scene and preserve a clear hierarchy.
-- Spacing and layout rhythm: the stone owns the visual center, the header clears the status bar, and the bottom action sheet remains fully visible without covering the active date rows.
-- Colors and visual tokens: the cream action sheet and dark moss action color sit within the muted green/stone palette and retain sufficient contrast.
-- Image quality and asset fidelity: all core visuals use the supplied raster assets. The stone and marks use processed transparent WebP derivatives; no CSS, SVG, emoji, or programmatic drawing replaces them. The upper scene remains fixed while the lower vegetation region crossfades.
-- Copy and content: the interface consistently uses “未破戒 / 破戒”, displays the current 1–5 level and name, and exposes reset, edit, and clear-record states.
+- No actionable P0, P1, or P2 issues remain.
+- Fonts and typography: the existing title, date, growth state and action hierarchy are preserved. Text remains legible after the restrained scene-brightness lift.
+- Spacing and layout rhythm: the page now fills the browser viewport. Header and action panel are capped to readable widths on larger screens, while the stone remains centered and the bottom panel clears the safe area.
+- Colors and visual tokens: the background imagery is approximately 11% brighter, with the dark wash and upper/lower inset shading reduced. The atmosphere remains muted and the foreground controls retain adequate contrast.
+- Image quality and asset fidelity: all supplied photographic and stone/mark raster assets are retained without redrawing. All rendered images reported real natural dimensions; broken image count was zero.
+- Copy and content: the original “未破戒 / 破戒” interaction, current level, selected day, reset and clear-record states are unchanged.
 
 ## Full-view Comparison
 
-The combined comparison shows the same supplied normal vegetation, stone texture, centered monument hierarchy, and photographic visual language. The implementation intentionally reduces the stone slightly to reserve a stable header and bottom action area. This is an interaction-layout adaptation, not asset drift.
+The source showed the app nested inside a white prototype canvas with an iPhone bezel, device selector, simulated status bar and simulated home indicator. The browser-rendered implementation contains none of those elements and instead occupies the entire `1363 × 936` viewport. The photographic scene is visibly clearer, while the stone, header and bottom controls retain the original composition.
 
 ## Focused Region Comparison
 
-`qa/date-anchor-preview.jpg` overlays all 31 measured anchors on the processed stone. Each anchor lands on its corresponding engraved date; the browser interaction test also confirmed that the real success and broken-mark images render at those anchors.
+No additional focused crop was required: this change concerns the outer runtime shell and overall scene luminance, both of which are clearly visible in the full-view evidence. App-owned typography, date anchors and controls were not redesigned.
 
 ## Primary Interactions Tested
 
-- New user starts at level 3.
-- “未破戒” advances one level and clamps at level 5.
-- “破戒” reduces one level and clamps at level 1.
-- Editing an older record recalculates the current level chronologically from level 3.
-- Deleting an older record recalculates the remaining sequence.
-- Future dates 28–31 are disabled for the browser date used in this run.
-- Reset clears all records and restores level 3.
-- The lower-only background transition was visually checked at levels 1, 2, 3, 4, and 5.
+- “未破戒” changes the visible flower level from `正常` to `茂盛`.
+- Reset returns the app to level 3 / `正常`.
+- The standalone shell exactly matches the viewport dimensions.
+- Device preview chrome counts: phone stage `0`, phone frame `0`, device picker `0`, simulated status bar `0`, home indicator `0`.
+- All scene and stone images loaded successfully.
 
 ## Console Check
 
-- Application-origin console warnings/errors: none.
-- Cloud-browser extension metadata errors were present only under a `chrome-extension://` URL and are unrelated to the app.
+- Application-origin warnings/errors: none.
+- The only logged errors came from a `chrome-extension://` metadata script and are unrelated to the app.
 
 ## Comparison History
 
-- Initial comparison: no P0/P1/P2 visual issue found.
-- No design-QA fix iteration was required.
-- Residual P3 note: the cloud stage scales the device frame to fit the available browser height; the captured content was normalized to the intended `393 × 852` comparison size.
+- Initial P1: production showed the prototype iPhone frame and debug device selector.
+  - Fix: replaced the production entry with a standalone full-viewport shell while retaining the existing providers and app interaction logic.
+  - Post-fix evidence: all five debug/prototype chrome selectors return a count of zero.
+- Initial P2: the photographic background was too dark to read comfortably.
+  - Fix: increased scene brightness by 11% and reduced the overlay/inset darkness.
+  - Post-fix evidence: vegetation, sky and tree framing are visibly clearer while white text remains readable.
 
 ## Implementation Checklist
 
-- [x] Real photographic assets retained
-- [x] White backgrounds removed from stone and mark assets
-- [x] Thirty-one dates independently calibrated
-- [x] Lower vegetation-only crossfade implemented
-- [x] Revised stepwise 1–5 level calculation implemented
-- [x] Historical edits recalculate chronologically
-- [x] Mobile interactions and reset verified
-- [x] Runtime console checked
+- [x] Production preview shell removed
+- [x] Normal full-viewport webpage enabled
+- [x] Safe-area spacing retained
+- [x] Background subtly brightened
+- [x] App interactions preserved
+- [x] Images and console verified
+- [x] Runtime lock refreshed
 
 final result: passed

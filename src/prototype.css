@@ -42,6 +42,7 @@
 .landscape-ground {
   width: 100%;
   height: 100%;
+  filter: brightness(1.11) saturate(1.02);
   object-fit: cover;
   object-position: 50% 50%;
   user-select: none;
@@ -79,10 +80,10 @@
 
 .landscape-wash {
   z-index: 2;
-  background: rgba(18, 22, 18, 0.16);
+  background: rgba(18, 22, 18, 0.09);
   box-shadow:
-    inset 0 120px 120px rgba(15, 19, 16, 0.32),
-    inset 0 -188px 116px rgba(15, 19, 16, 0.36);
+    inset 0 112px 116px rgba(15, 19, 16, 0.22),
+    inset 0 -178px 110px rgba(15, 19, 16, 0.25);
   pointer-events: none;
 }
 
@@ -92,8 +93,11 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  min-height: 116px;
-  padding: 54px 20px 8px;
+  min-height: 88px;
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  padding: calc(env(safe-area-inset-top, 0px) + 20px) 20px 8px;
   text-shadow: 0 1px 12px rgba(0, 0, 0, 0.45);
 }
 
@@ -282,7 +286,8 @@
   position: relative;
   z-index: 6;
   flex: 0 0 auto;
-  margin: 0 14px calc(var(--mobile-safe-area-height) + 10px);
+  width: min(calc(100% - 28px), 480px);
+  margin: 0 auto calc(var(--mobile-safe-area-height) + 10px);
   padding: 13px 14px 10px;
   border: 1px solid rgba(255, 252, 240, 0.46);
   border-radius: 25px;
