@@ -43,6 +43,7 @@ jobs:
         run: |
           npx tsc
           npx vite build --base=/${{ github.event.repository.name }}/
+          node scripts/patch-github-pages-assets.mjs "${{ github.event.repository.name }}"
 
       - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@v4
