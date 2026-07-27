@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import dateAnchorsData from "./date-anchors.json";
 import { MobileScroll, useKeyboard } from "./mobile";
 
@@ -82,6 +88,8 @@ export default function Prototype() {
   const [selectedDay, setSelectedDay] = useState(Math.min(todayDay, 31));
   const [state, setState] = useState<StoredState>(loadState);
   const [feedback, setFeedback] = useState("");
+  const [secondaryOpen, setSecondaryOpen] = useState(false);
+  const secondaryControlsRef = useRef<HTMLDivElement>(null);
 
   const selectedDate = dateForDay(today, selectedDay);
   const selectedKey = dateKey(selectedDate);
@@ -101,6 +109,31 @@ export default function Prototype() {
     const timer = window.setTimeout(() => setFeedback(""), 2600);
     return () => window.clearTimeout(timer);
   }, [feedback]);
+
+  useEffect(() => {
+    if (!secondaryOpen) return;
+
+    const closeSecondaryControls = (event: PointerEvent | KeyboardEvent) => {
+      if (event instanceof KeyboardEvent) {
+        if (event.key === "Escape") setSecondaryOpen(false);
+        return;
+      }
+
+      if (
+        event.target instanceof Node &&
+        !secondaryControlsRef.current?.contains(event.target)
+      ) {
+        setSecondaryOpen(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", closeSecondaryControls);
+    document.addEventListener("keydown", closeSecondaryControls);
+    return () => {
+      document.removeEventListener("pointerdown", closeSecondaryControls);
+      document.removeEventListener("keydown", closeSecondaryControls);
+    };
+  }, [secondaryOpen]);
 
   const updateRecord = (status: CheckStatus) => {
     if (selectedDay > todayDay || selectedDay > monthDays) return;
@@ -136,6 +169,7 @@ export default function Prototype() {
     keyboard.hide();
     setState(defaultState);
     setSelectedDay(Math.min(todayDay, 31));
+    setSecondaryOpen(false);
     setFeedback("石碑已恢复到初始状态");
   };
 
@@ -174,24 +208,50 @@ export default function Prototype() {
         </div>
 
         <header className="monument-header">
-          <div>
-            <p className="eyebrow">
-              {today.toLocaleDateString("zh-CN", {
-                month: "long",
-                day: "numeric",
-                weekday: "short",
-              })}
-            </p>
-            <h1>石碑打卡</h1>
-          </div>
-          <div className="header-actions">
-            <div className="growth-pill" data-testid="level-label">
-              <span>花草</span>
-              <strong>{levelMeta[currentLevel as keyof typeof levelMeta].label}</strong>
-            </div>
-            <button className="reset-button" type="button" onClick={resetDemo}>
-              重置
+          <p className="eyebrow">
+            {today.toLocaleDateString("zh-CN", {
+              month: "long",
+              day: "numeric",
+              weekday: "short",
+            })}
+          </p>
+          <div className="secondary-controls" ref={secondaryControlsRef}>
+            <button
+              className="secondary-trigger"
+              type="button"
+              aria-label={secondaryOpen ? "收起花草状态和重置选项" : "打开花草状态和重置选项"}
+              aria-expanded={secondaryOpen}
+              aria-controls="secondary-panel"
+              onClick={() => {
+                keyboard.hide();
+                setSecondaryOpen((open) => !open);
+              }}
+            >
+              <span className="stone-menu-glyph" aria-hidden="true">
+                <i />
+                <i />
+                <i />
+              </span>
+              <span className="visually-hidden" data-testid="level-label">
+                花草 {levelMeta[currentLevel as keyof typeof levelMeta].label}
+              </span>
             </button>
+
+            <div
+              className={`secondary-panel ${secondaryOpen ? "is-open" : ""}`}
+              id="secondary-panel"
+              aria-hidden={!secondaryOpen}
+              inert={!secondaryOpen}
+            >
+              <div className="growth-summary">
+                <span>花草状态</span>
+                <strong>{levelMeta[currentLevel as keyof typeof levelMeta].label}</strong>
+                <small>第 {currentLevel} 档 / 共 5 档</small>
+              </div>
+              <button className="reset-button" type="button" onClick={resetDemo}>
+                恢复初始状态
+              </button>
+            </div>
           </div>
         </header>
 
@@ -288,6 +348,7 @@ export default function Prototype() {
               disabled={selectedDay > todayDay || selectedDay > monthDays}
               onClick={() => updateRecord("success")}
               data-testid="success-button"
+              aria-pressed={selectedStatus === "success"}
             >
               未破戒
             </button>
@@ -299,6 +360,7 @@ export default function Prototype() {
               disabled={selectedDay > todayDay || selectedDay > monthDays}
               onClick={() => updateRecord("relapse")}
               data-testid="relapse-button"
+              aria-pressed={selectedStatus === "relapse"}
             >
               破戒
             </button>
