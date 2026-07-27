@@ -13,11 +13,14 @@
 ## Findings
 
 - No actionable P0, P1, or P2 issues remain.
-- Fonts and typography: the existing title, date, growth state and action hierarchy are preserved. Text remains legible after the restrained scene-brightness lift.
-- Spacing and layout rhythm: the page now fills the browser viewport. Header and action panel are capped to readable widths on larger screens, while the stone remains centered and the bottom panel clears the safe area.
-- Colors and visual tokens: the background imagery is approximately 11% brighter, with the dark wash and upper/lower inset shading reduced. The atmosphere remains muted and the foreground controls retain adequate contrast.
+- Fonts and typography: the redundant “石碑打卡” title is removed. The date remains as a quiet orientation cue, while selected-day and current-level information lead the action panel.
+- Spacing and layout rhythm: the page fills the browser viewport. Header and action panel are capped to readable widths on larger screens, while the stone remains centered and the bottom panel clears the safe area.
+- Colors and visual tokens: the background imagery is approximately 17% brighter than its unfiltered source, with the dark wash and upper/lower inset shading reduced. The interaction palette now comes exclusively from warm brass, moss, weathered rock and dark misted glass.
+- Selection treatment: the selected date uses a soft warm radial glow blended into the stone rather than an outlined oval.
+- Control materials: the action panel is a dark translucent frosted surface. “未破戒” uses a muted moss/brass finish and “破戒” a desaturated weathered gray-brown finish; neither uses standard red/green status colors.
+- Secondary disclosure: flower level and reset are no longer exposed as first-screen labels. A small stone-textured control opens a compact secondary panel, supports Escape/outside dismissal, and removes hidden controls from keyboard focus.
 - Image quality and asset fidelity: all supplied photographic and stone/mark raster assets are retained without redrawing. All rendered images reported real natural dimensions; broken image count was zero.
-- Copy and content: the original “未破戒 / 破戒” interaction, current level, selected day, reset and clear-record states are unchanged.
+- Copy and content: the original “未破戒 / 破戒” interaction, current level, selected day, reset and clear-record states are unchanged; only the redundant title and exposed debug-style labels were removed from the first screen.
 
 ## Full-view Comparison
 
@@ -29,7 +32,9 @@ No additional focused crop was required: this change concerns the outer runtime 
 
 ## Primary Interactions Tested
 
-- “未破戒” changes the visible flower level from `正常` to `茂盛`.
+- The secondary stone control opens the flower-level/reset panel and closes with the same control.
+- The hidden secondary panel is inert and does not expose its reset action to keyboard focus.
+- “未破戒” changes the visible flower level from `正常` to `茂盛` and sets `aria-pressed=true`.
 - Reset returns the app to level 3 / `正常`.
 - The standalone shell exactly matches the viewport dimensions.
 - Device preview chrome counts: phone stage `0`, phone frame `0`, device picker `0`, simulated status bar `0`, home indicator `0`.
@@ -55,6 +60,11 @@ No additional focused crop was required: this change concerns the outer runtime 
 - [x] Normal full-viewport webpage enabled
 - [x] Safe-area spacing retained
 - [x] Background subtly brightened
+- [x] Selected date changed from outline to warm radial light
+- [x] Bottom panel changed to dark misted glass
+- [x] Status buttons moved to one muted material palette
+- [x] Flower state and reset moved behind secondary disclosure
+- [x] “石碑打卡” title removed
 - [x] App interactions preserved
 - [x] Images and console verified
 - [x] Runtime lock refreshed
