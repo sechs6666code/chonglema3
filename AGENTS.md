@@ -6,6 +6,8 @@ In ChatGPT Work Mode, run `sites-preview start "$PWD"`, open `http://terminal.lo
 
 The production `chonglema3` entry is a standalone, full-viewport mobile webpage. Do not expose the phone bezel, device picker, simulated status bar, home indicator, or other prototype/debug chrome in the user-facing GitHub Pages build. Keep the photographic scene legible with a restrained brightness lift rather than a heavy dark wash.
 
+The stone check-in surface uses one restrained, material-led visual language: warm brass light, moss, weathered rock, and dark translucent misted glass. Do not use standard success/danger red-green semantics, bright opaque cards, generic outline selections, or exposed debug/status controls. Selected dates should read as a soft warm glow on the stone. Keep flower state and reset inside a secondary disclosure, and do not show the “石碑打卡” title in the top-left.
+
 Before planning or implementing any mobile-app change, read this `AGENTS.md` in full. It is the source of truth for the template's runtime and component guidance.
 
 Before making substantial visual changes, use the Product Design plugin's `get-context` skill when the visual source is unclear or no longer matches the current goal. When the user gives durable prototype-specific design feedback, preferences, or decisions, record them in `AGENTS.md`.
