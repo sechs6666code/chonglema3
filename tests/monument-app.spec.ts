@@ -66,6 +66,22 @@ test("showroom has twelve states and current detail uses through-today totals", 
   await expect(page.getByText("三项合计 28 日")).toBeVisible();
   await expect(detail.getByTestId("success-button")).toHaveCount(0);
   await expect(detail.getByTestId("relapse-button")).toHaveCount(0);
+
+  const stoneFitsDetailViewport = await detail.evaluate((detailElement) => {
+    const wrap = detailElement.querySelector(".detail-stone-wrap");
+    const stone = detailElement.querySelector(".stone-stage--detail");
+    if (!(wrap instanceof HTMLElement) || !(stone instanceof HTMLElement)) {
+      return false;
+    }
+
+    const wrapBounds = wrap.getBoundingClientRect();
+    const stoneBounds = stone.getBoundingClientRect();
+    return (
+      stoneBounds.top >= wrapBounds.top &&
+      stoneBounds.bottom <= wrapBounds.bottom
+    );
+  });
+  expect(stoneFitsDetailViewport).toBe(true);
 });
 
 test("completed-month statistics include unlogged days and remain read-only", async ({
