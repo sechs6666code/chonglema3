@@ -10,6 +10,8 @@ The stone check-in surface uses one restrained, material-led visual language: wa
 
 The selected-date glow must remain clearly visible against the stone's dark texture without becoming an outline. Keep the bottom check-in surface highly translucent so the scene remains legible through its frosted blur. After today's check-in completes, collapse that surface into a compact status chip; selecting another date or activating the compact chip expands it again.
 
+All five vegetation-state photographs participate in a full-viewport crossfade. Do not crop, mask, or restrict the transition to the lower vegetation region; every level image must use the same full-screen sizing and positioning so the entire scene changes together.
+
 Before planning or implementing any mobile-app change, read this `AGENTS.md` in full. It is the source of truth for the template's runtime and component guidance.
 
 Before making substantial visual changes, use the Product Design plugin's `get-context` skill when the visual source is unclear or no longer matches the current goal. When the user gives durable prototype-specific design feedback, preferences, or decisions, record them in `AGENTS.md`.
