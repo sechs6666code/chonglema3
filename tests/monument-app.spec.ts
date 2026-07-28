@@ -59,6 +59,10 @@ test("showroom has twelve states and current detail uses through-today totals", 
   await expect(tiles.filter({ has: page.getByText("进行中") })).toHaveCount(1);
   await expect(page.locator(".museum-tile:disabled")).toHaveCount(11);
   await expect(page.locator(".museum-stone-silhouette")).toHaveCount(12);
+  const showroomBackground = await page
+    .getByTestId("gallery-page")
+    .evaluate((gallery) => getComputedStyle(gallery, "::after").backgroundImage);
+  expect(showroomBackground).toContain("showroom-cavern.jpg");
 
   const futureSurface = page.locator(
     ".museum-tile.is-future .museum-stone-surface",

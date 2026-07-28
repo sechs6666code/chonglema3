@@ -905,21 +905,21 @@
   background:
     linear-gradient(
       180deg,
-      rgba(21, 27, 21, 0.46) 0%,
-      rgba(16, 21, 17, 0.76) 58%,
-      rgba(13, 17, 14, 0.92) 100%
+      rgba(17, 14, 11, 0.22) 0%,
+      rgba(13, 13, 11, 0.5) 58%,
+      rgba(9, 10, 8, 0.76) 100%
     ),
     linear-gradient(
       90deg,
-      rgba(15, 20, 16, 0.6),
-      rgba(27, 31, 23, 0.2) 48%,
-      rgba(15, 20, 16, 0.62)
+      rgba(13, 12, 10, 0.42),
+      rgba(24, 22, 18, 0.08) 48%,
+      rgba(13, 12, 10, 0.44)
     ),
-    url("/assets/scene/source/level-5-blooming.jpg") center 38% / cover
+    url("/assets/scene/showroom-cavern.jpg") center 48% / cover
       no-repeat;
   content: "";
-  filter: saturate(0.56) contrast(0.92);
-  opacity: 0.78;
+  filter: saturate(0.72) contrast(0.96) brightness(1.06);
+  opacity: 0.92;
   pointer-events: none;
 }
 
