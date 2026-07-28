@@ -4,6 +4,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import dateAnchorsData from "./date-anchors.json";
 import { MobileScroll, useKeyboard } from "./mobile";
@@ -89,6 +90,9 @@ export default function Prototype() {
   const [state, setState] = useState<StoredState>(loadState);
   const [feedback, setFeedback] = useState("");
   const [secondaryOpen, setSecondaryOpen] = useState(false);
+  const [panelCollapsed, setPanelCollapsed] = useState(
+    () => Boolean(state.records[dateKey(today)]),
+  );
   const secondaryControlsRef = useRef<HTMLDivElement>(null);
 
   const selectedDate = dateForDay(today, selectedDay);
@@ -140,6 +144,7 @@ export default function Prototype() {
     keyboard.hide();
     if (selectedStatus === status) {
       setFeedback(`第 ${selectedDay} 日已经记录为“${statusLabels[status]}”`);
+      if (selectedDay === todayDay) setPanelCollapsed(true);
       return;
     }
 
@@ -153,6 +158,7 @@ export default function Prototype() {
         statusLabels[status]
       }” · 档位 ${currentLevel} → ${nextLevel}`,
     );
+    if (selectedDay === todayDay) setPanelCollapsed(true);
   };
 
   const clearSelectedRecord = () => {
@@ -162,6 +168,7 @@ export default function Prototype() {
     delete records[selectedKey];
     const nextLevel = calculateLevel(records);
     setState({ records });
+    setPanelCollapsed(false);
     setFeedback(`已清除第 ${selectedDay} 日记录 · 档位 ${currentLevel} → ${nextLevel}`);
   };
 
@@ -170,7 +177,22 @@ export default function Prototype() {
     setState(defaultState);
     setSelectedDay(Math.min(todayDay, 31));
     setSecondaryOpen(false);
+    setPanelCollapsed(false);
     setFeedback("石碑已恢复到初始状态");
+  };
+
+  const expandCheckinPanel = () => {
+    if (!panelCollapsed) return;
+    keyboard.hide();
+    setPanelCollapsed(false);
+  };
+
+  const handleCollapsedPanelKeyDown = (
+    event: ReactKeyboardEvent<HTMLElement>,
+  ) => {
+    if (!panelCollapsed || (event.key !== "Enter" && event.key !== " ")) return;
+    event.preventDefault();
+    expandCheckinPanel();
   };
 
   const selectedRecordLabel = selectedStatus
@@ -317,6 +339,7 @@ export default function Prototype() {
                     onClick={() => {
                       keyboard.hide();
                       setSelectedDay(anchor.day);
+                      if (anchor.day !== todayDay) setPanelCollapsed(false);
                     }}
                     style={style}
                   />
@@ -326,57 +349,83 @@ export default function Prototype() {
           </div>
         </section>
 
-        <section className="checkin-panel" aria-label="打卡操作">
-          <div className="panel-summary">
-            <div>
-              <p>第 {selectedDay} 日</p>
-              <strong>{selectedRecordLabel}</strong>
-            </div>
-            <div className="rolling-score">
-              <span>当前档位</span>
-              <strong>{currentLevel}</strong>
-              <small>/ 5 · {levelMeta[currentLevel as keyof typeof levelMeta].label}</small>
-            </div>
+        <section
+          className={`checkin-panel ${panelCollapsed ? "is-collapsed" : ""}`}
+          aria-label={panelCollapsed ? "展开打卡操作" : "打卡操作"}
+          role={panelCollapsed ? "button" : undefined}
+          tabIndex={panelCollapsed ? 0 : undefined}
+          onClick={expandCheckinPanel}
+          onKeyDown={handleCollapsedPanelKeyDown}
+          data-testid="checkin-panel"
+          data-collapsed={panelCollapsed}
+        >
+          <div className="panel-collapsed-summary" aria-hidden={!panelCollapsed}>
+            <span className="collapsed-mark" aria-hidden="true" />
+            <span>第 {selectedDay} 日</span>
+            <strong>{selectedRecordLabel}</strong>
           </div>
 
-          <div className="checkin-actions">
-            <button
-              className={`checkin-button checkin-button--success ${
-                selectedStatus === "success" ? "is-current" : ""
-              }`}
-              type="button"
-              disabled={selectedDay > todayDay || selectedDay > monthDays}
-              onClick={() => updateRecord("success")}
-              data-testid="success-button"
-              aria-pressed={selectedStatus === "success"}
-            >
-              未破戒
-            </button>
-            <button
-              className={`checkin-button checkin-button--relapse ${
-                selectedStatus === "relapse" ? "is-current" : ""
-              }`}
-              type="button"
-              disabled={selectedDay > todayDay || selectedDay > monthDays}
-              onClick={() => updateRecord("relapse")}
-              data-testid="relapse-button"
-              aria-pressed={selectedStatus === "relapse"}
-            >
-              破戒
-            </button>
-          </div>
-
-          <button
-            className="clear-record"
-            type="button"
-            disabled={!selectedStatus}
-            onClick={clearSelectedRecord}
+          <div
+            className="panel-expanded-content"
+            aria-hidden={panelCollapsed}
+            inert={panelCollapsed}
           >
-            清除本日记录
-          </button>
+            <div className="panel-summary">
+              <div>
+                <p>第 {selectedDay} 日</p>
+                <strong>{selectedRecordLabel}</strong>
+              </div>
+              <div className="rolling-score">
+                <span>当前档位</span>
+                <strong>{currentLevel}</strong>
+                <small>/ 5 · {levelMeta[currentLevel as keyof typeof levelMeta].label}</small>
+              </div>
+            </div>
+
+            <div className="checkin-actions">
+              <button
+                className={`checkin-button checkin-button--success ${
+                  selectedStatus === "success" ? "is-current" : ""
+                }`}
+                type="button"
+                disabled={selectedDay > todayDay || selectedDay > monthDays}
+                onClick={() => updateRecord("success")}
+                data-testid="success-button"
+                aria-pressed={selectedStatus === "success"}
+              >
+                未破戒
+              </button>
+              <button
+                className={`checkin-button checkin-button--relapse ${
+                  selectedStatus === "relapse" ? "is-current" : ""
+                }`}
+                type="button"
+                disabled={selectedDay > todayDay || selectedDay > monthDays}
+                onClick={() => updateRecord("relapse")}
+                data-testid="relapse-button"
+                aria-pressed={selectedStatus === "relapse"}
+              >
+                破戒
+              </button>
+            </div>
+
+            <button
+              className="clear-record"
+              type="button"
+              disabled={!selectedStatus}
+              onClick={clearSelectedRecord}
+            >
+              清除本日记录
+            </button>
+          </div>
         </section>
 
-        <div className={`feedback-toast ${feedback ? "is-visible" : ""}`} aria-live="polite">
+        <div
+          className={`feedback-toast ${feedback ? "is-visible" : ""} ${
+            panelCollapsed ? "is-panel-collapsed" : ""
+          }`}
+          aria-live="polite"
+        >
           {feedback}
         </div>
       </main>
