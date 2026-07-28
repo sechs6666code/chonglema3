@@ -19,6 +19,7 @@
 - Selection treatment: the selected date uses a soft warm radial glow blended into the stone rather than an outlined oval.
 - Control materials: the action panel is a dark translucent frosted surface. “未破戒” uses a muted moss/brass finish and “破戒” a desaturated weathered gray-brown finish; neither uses standard red/green status colors.
 - Secondary disclosure: flower level and reset are no longer exposed as first-screen labels. A small stone-textured control opens a compact secondary panel, supports Escape/outside dismissal, and removes hidden controls from keyboard focus.
+- Scene transition: all five vegetation-state photographs use the same full-viewport geometry and crossfade across 100% of the scene; no lower-region mask or fixed upper crop remains.
 - Image quality and asset fidelity: all supplied photographic and stone/mark raster assets are retained without redrawing. All rendered images reported real natural dimensions; broken image count was zero.
 - Copy and content: the original “未破戒 / 破戒” interaction, current level, selected day, reset and clear-record states are unchanged; only the redundant title and exposed debug-style labels were removed from the first screen.
 
@@ -60,6 +61,7 @@ No additional focused crop was required: this change concerns the outer runtime 
 - [x] Normal full-viewport webpage enabled
 - [x] Safe-area spacing retained
 - [x] Background subtly brightened
+- [x] Five vegetation states crossfade across the full viewport
 - [x] Selected date changed from outline to warm radial light
 - [x] Bottom panel changed to dark misted glass
 - [x] Status buttons moved to one muted material palette
