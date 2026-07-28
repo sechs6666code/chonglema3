@@ -75,6 +75,45 @@ final result: passed
 
 ---
 
+# 陈列室与月份滑动 · QA
+
+## Confirmed Rules
+
+- 首页手势遵循手机平台习惯：左滑进入下一个／未来月份，右滑返回上一个／过去月份。
+- 2026年7月是历史起点；继续右滑不越界，并显示非模态提示。
+- 首页只有真实当前月份可写。任何非当前月份都用只读统计替换打卡、清除与修改入口。
+- 陈列室及月份详情始终只读；未来月份直接复用正式石碑图，通过 CSS 模糊与暗化处理。
+
+## Data and Statistics
+
+- 现有记录键为完整日期 `YYYY-MM-DD`，可直接按月统计，无需迁移或重写已有数据。
+- 已完成月份统计完整自然月；当前月份只统计截至今天已经经过的日期；未来月份的已过日期数为0。
+- 以2026年8月3日回看7月的验证样本：未破戒2日、破戒1日、未打卡28日，三项合计31日。
+- 当前月以2026年7月28日验证：三项合计28日，不把7月29日至31日计入未打卡。
+
+## Browser Validation
+
+- 左滑：`2026-07` → `2026-08`。
+- 右滑：`2026-08` → `2026-07`。
+- 7月继续右滑：月份保持 `2026-07`，提示“石碑始立于今年七月，此前尚无史迹。”
+- 8月只读首页写入按钮数量为0；滑回7月后写入按钮恢复。
+- 陈列室共12格；7月当前态1格，未来态11格均禁用并使用同图 CSS 滤镜。
+- 当前月详情和历史月详情内的打卡操作数量均为0。
+- 触屏月份区域计算样式为 `touch-action: none`；最终预览无项目自身控制台错误或警告。
+
+## Validation
+
+- [x] Production TypeScript and Vite build passed
+- [x] 28 protected mobile runtime files intact
+- [x] 4 Sites worker tests passed
+- [x] Swipe direction and history-boundary browser checks passed
+- [x] Read-only boundary and monthly-statistics browser checks passed
+- [x] Impeccable detector returned zero findings
+
+final result: passed
+
+---
+
 # 8月至次年6月石碑 · 逐月标定 QA
 
 ## Evidence
