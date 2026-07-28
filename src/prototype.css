@@ -1101,10 +1101,9 @@
 .detail-stone-wrap {
   position: relative;
   width: min(100%, 520px);
-  height: min(52dvh, 480px);
-  min-height: 340px;
+  height: clamp(440px, 138vw, 580px);
   flex: 0 0 auto;
-  margin: 0 auto;
+  margin: 8px auto 0;
   overflow: hidden;
 }
 
