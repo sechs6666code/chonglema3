@@ -58,6 +58,16 @@ test("showroom has twelve states and current detail uses through-today totals", 
   await expect(tiles).toHaveCount(12);
   await expect(tiles.filter({ has: page.getByText("进行中") })).toHaveCount(1);
   await expect(page.locator(".museum-tile:disabled")).toHaveCount(11);
+  await expect(page.locator(".museum-stone-silhouette")).toHaveCount(12);
+
+  const futureSurface = page.locator(
+    ".museum-tile.is-future .museum-stone-surface",
+  ).first();
+  const futureSilhouette = page.locator(
+    ".museum-tile.is-future .museum-stone-silhouette",
+  ).first();
+  await expect(futureSurface).toHaveCSS("filter", /blur\(3\.5px\)/);
+  await expect(futureSilhouette).toHaveCSS("opacity", "0.88");
 
   await tiles.filter({ has: page.getByText("进行中") }).click();
   const detail = page.getByTestId("month-detail-page");
