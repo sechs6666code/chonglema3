@@ -879,6 +879,14 @@ function GalleryScreen() {
                 >
                   <span className="museum-stone-frame">
                     <img
+                      className="museum-stone-silhouette"
+                      src={month.stone.image}
+                      alt=""
+                      aria-hidden="true"
+                      draggable={false}
+                    />
+                    <img
+                      className="museum-stone-surface"
                       src={month.stone.image}
                       alt=""
                       draggable={false}
