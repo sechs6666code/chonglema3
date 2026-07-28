@@ -1,3 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@500;600;700&display=swap");
+
 /* App-specific styles. The surrounding mobile runtime remains template-owned. */
 
 .app-screen {
@@ -873,12 +875,11 @@
     ),
     linear-gradient(180deg, #252c24 0%, #1c221c 56%, #171c17 100%);
   font-family:
-    ui-sans-serif,
-    -apple-system,
-    BlinkMacSystemFont,
-    "PingFang SC",
-    "Microsoft YaHei",
-    sans-serif;
+    "Big Shoulders Display",
+    "Songti SC",
+    "STSong",
+    Georgia,
+    serif;
 }
 
 .gallery-app::before,
@@ -897,7 +898,40 @@
   pointer-events: none;
 }
 
-.gallery-app > *,
+.gallery-app::after {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(21, 27, 21, 0.46) 0%,
+      rgba(16, 21, 17, 0.76) 58%,
+      rgba(13, 17, 14, 0.92) 100%
+    ),
+    linear-gradient(
+      90deg,
+      rgba(15, 20, 16, 0.6),
+      rgba(27, 31, 23, 0.2) 48%,
+      rgba(15, 20, 16, 0.62)
+    ),
+    url("/assets/scene/source/level-5-blooming.jpg") center 38% / cover
+      no-repeat;
+  content: "";
+  filter: saturate(0.56) contrast(0.92);
+  opacity: 0.78;
+  pointer-events: none;
+}
+
+.gallery-app::before {
+  z-index: 1;
+}
+
+.gallery-app > * {
+  position: relative;
+  z-index: 2;
+}
+
 .month-detail > * {
   position: relative;
   z-index: 1;
@@ -925,22 +959,29 @@
 .museum-header h1 {
   color: #f2e9d6;
   font-family:
-    ui-serif,
+    "Big Shoulders Display",
     "Songti SC",
     "STSong",
     Georgia,
     serif;
-  font-size: 23px;
-  font-weight: 620;
-  letter-spacing: 0.08em;
+  font-size: 27px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
   line-height: 1.15;
 }
 
 .museum-header p {
   margin-top: 4px;
   color: rgba(221, 205, 170, 0.52);
-  font-size: 9px;
-  letter-spacing: 0.12em;
+  font-family:
+    "Big Shoulders Display",
+    "Songti SC",
+    "STSong",
+    Georgia,
+    serif;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
 }
 
 .museum-back {
@@ -970,15 +1011,15 @@
   background:
     linear-gradient(
       145deg,
-      rgba(224, 205, 164, 0.065),
-      rgba(14, 19, 15, 0.08)
+      rgba(224, 205, 164, 0.055),
+      rgba(14, 19, 15, 0.14)
     ),
-    rgba(15, 20, 16, 0.18);
+    rgba(15, 20, 16, 0.28);
   box-shadow:
-    0 22px 58px rgba(5, 8, 5, 0.22),
+    0 28px 64px rgba(5, 8, 5, 0.3),
     inset 0 1px rgba(245, 229, 194, 0.08);
-  backdrop-filter: blur(15px) saturate(0.82);
-  -webkit-backdrop-filter: blur(15px) saturate(0.82);
+  backdrop-filter: blur(17px) saturate(0.76);
+  -webkit-backdrop-filter: blur(17px) saturate(0.76);
 }
 
 .museum-grid {
@@ -998,10 +1039,33 @@
   border-radius: 13px;
   background: rgba(244, 232, 205, 0.018);
   color: inherit;
+  isolation: isolate;
   transition:
     border-color 180ms ease,
     background-color 180ms ease,
+    box-shadow 220ms ease,
     transform 140ms ease;
+}
+
+.museum-tile::before {
+  position: absolute;
+  z-index: 0;
+  inset: 4px 1px 20px;
+  border-radius: 12px;
+  background: radial-gradient(
+    ellipse at 50% 62%,
+    rgba(184, 147, 95, 0),
+    transparent 68%
+  );
+  content: "";
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 220ms ease;
+}
+
+.museum-tile > * {
+  position: relative;
+  z-index: 1;
 }
 
 .museum-tile:active:not(:disabled) {
@@ -1011,7 +1075,20 @@
 .museum-tile.is-current {
   border-color: rgba(184, 147, 95, 0.64);
   background: rgba(184, 147, 95, 0.07);
-  box-shadow: inset 0 0 0 1px rgba(234, 211, 165, 0.04);
+  box-shadow:
+    0 12px 28px rgba(11, 12, 8, 0.22),
+    0 0 20px rgba(184, 147, 95, 0.12),
+    inset 0 0 0 1px rgba(234, 211, 165, 0.04);
+}
+
+.museum-tile.is-current::before {
+  background: radial-gradient(
+    ellipse at 50% 62%,
+    rgba(184, 147, 95, 0.27) 0%,
+    rgba(184, 147, 95, 0.12) 34%,
+    rgba(184, 147, 95, 0) 70%
+  );
+  opacity: 1;
 }
 
 .museum-tile:disabled {
@@ -1019,6 +1096,7 @@
 }
 
 .museum-stone-frame {
+  position: relative;
   display: grid;
   min-width: 0;
   min-height: 0;
@@ -1026,7 +1104,30 @@
   overflow: hidden;
 }
 
+.museum-stone-frame::after {
+  position: absolute;
+  z-index: 0;
+  bottom: 1px;
+  left: 50%;
+  width: 76%;
+  height: 9px;
+  border: 1px solid rgba(229, 210, 169, 0.11);
+  border-radius: 50%;
+  background: linear-gradient(
+    180deg,
+    rgba(183, 166, 128, 0.2),
+    rgba(31, 33, 26, 0.62)
+  );
+  box-shadow:
+    0 7px 10px rgba(4, 6, 4, 0.42),
+    inset 0 1px rgba(244, 225, 184, 0.12);
+  content: "";
+  transform: translateX(-50%);
+}
+
 .museum-stone-frame img {
+  z-index: 1;
+  grid-area: 1 / 1;
   display: block;
   width: auto;
   max-width: 88%;
@@ -1040,10 +1141,24 @@
   user-select: none;
 }
 
-.museum-tile.is-future .museum-stone-frame img {
-  filter: blur(6px) brightness(0.4) saturate(0.55);
-  opacity: 0.72;
-  transform: scale(0.98);
+.museum-stone-silhouette {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.museum-tile.is-future .museum-stone-silhouette {
+  filter:
+    brightness(0.18)
+    saturate(0.34)
+    drop-shadow(0 9px 10px rgba(4, 6, 4, 0.4));
+  opacity: 0.88;
+  transform: scale(0.985);
+}
+
+.museum-tile.is-future .museum-stone-surface {
+  filter: blur(3.5px) brightness(0.42) saturate(0.5);
+  opacity: 0.54;
+  transform: scale(0.975);
 }
 
 .museum-month-label {
@@ -1052,23 +1167,26 @@
   justify-content: space-between;
   gap: 4px;
   padding: 7px 3px 0;
-}
-
-.museum-month-label strong {
-  color: rgba(241, 231, 209, 0.85);
   font-family:
-    ui-serif,
+    "Big Shoulders Display",
     "Songti SC",
     "STSong",
     Georgia,
     serif;
-  font-size: 12px;
-  font-weight: 620;
+}
+
+.museum-month-label strong {
+  color: rgba(241, 231, 209, 0.85);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
 }
 
 .museum-month-label small {
   color: rgba(221, 205, 170, 0.42);
-  font-size: 8px;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
 }
 
 .museum-tile.is-current .museum-month-label small {
@@ -1083,6 +1201,12 @@
   width: min(100%, 760px);
   margin: 13px auto 0;
   color: rgba(220, 205, 173, 0.42);
+  font-family:
+    "Big Shoulders Display",
+    "Songti SC",
+    "STSong",
+    Georgia,
+    serif;
   font-size: 9px;
   line-height: 1.5;
   text-align: center;
