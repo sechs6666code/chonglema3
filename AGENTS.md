@@ -18,6 +18,8 @@ Month navigation follows the platform convention: swiping left advances to the n
 
 Only the real current month is writable on the home surface. When any non-current month is visible, replace the check-in controls with a read-only monthly summary and do not expose record, edit, or clear actions. The showroom and every showroom month detail are also read-only. Completed-month statistics use the month's full day count; the current month uses only days through today; future months have no elapsed-day statistics. Future showroom stones must reuse their real image with CSS blur and darkening instead of a separate placeholder asset.
 
+The showroom preserves a museum-display feeling rather than a settings grid: use the supplied meadow photograph as a subdued environmental layer, give each stone a restrained plinth shadow, keep a recognizable dark outer silhouette around future stones while only their surface detail is misted, and light the current stone from behind with the existing `#B8935F` brass family. Showroom titles and month-state labels use the project's Big Shoulders Display-led type stack instead of default system UI typography.
+
 Before planning or implementing any mobile-app change, read this `AGENTS.md` in full. It is the source of truth for the template's runtime and component guidance.
 
 Before making substantial visual changes, use the Product Design plugin's `get-context` skill when the visual source is unclear or no longer matches the current goal. When the user gives durable prototype-specific design feedback, preferences, or decisions, record them in `AGENTS.md`.
