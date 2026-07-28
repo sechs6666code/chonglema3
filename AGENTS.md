@@ -14,6 +14,10 @@ All five vegetation-state photographs participate in a full-viewport crossfade. 
 
 Monthly stones are real supplied raster assets, not interchangeable skins. Keep one independently calibrated date grid per month and choose the stone from the real calendar month. Never reuse another month's anchors, invent missing dates, or leave a 31st hotspot on a 30-day stone. Preserve the centered 26–28 final row on February's 28-day stone, and keep June as a complete 5-column by 6-row grid ending at day 30. Tune each stone's rendered width for its own silhouette so narrow or squat stones remain clear of the header and check-in surface.
 
+Month navigation follows the platform convention: swiping left advances to the next/future month, and swiping right returns to the previous/past month. July 2026 is the first available month; do not synthesize an earlier stone, and give a short non-modal boundary message when the user tries to go before it.
+
+Only the real current month is writable on the home surface. When any non-current month is visible, replace the check-in controls with a read-only monthly summary and do not expose record, edit, or clear actions. The showroom and every showroom month detail are also read-only. Completed-month statistics use the month's full day count; the current month uses only days through today; future months have no elapsed-day statistics. Future showroom stones must reuse their real image with CSS blur and darkening instead of a separate placeholder asset.
+
 Before planning or implementing any mobile-app change, read this `AGENTS.md` in full. It is the source of truth for the template's runtime and component guidance.
 
 Before making substantial visual changes, use the Product Design plugin's `get-context` skill when the visual source is unclear or no longer matches the current goal. When the user gives durable prototype-specific design feedback, preferences, or decisions, record them in `AGENTS.md`.
