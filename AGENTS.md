@@ -8,7 +8,7 @@ The production `chonglema3` entry is a standalone, full-viewport mobile webpage.
 
 The stone check-in surface uses one restrained, material-led visual language: warm brass light, moss, weathered rock, and dark translucent misted glass. Do not use standard success/danger red-green semantics, bright opaque cards, generic outline selections, or exposed debug/status controls. Selected dates should read as a soft warm glow on the stone. Keep flower state and reset inside a secondary disclosure, and do not show the “石碑打卡” title in the top-left.
 
-The selected-date glow must remain clearly visible against the stone's dark texture without becoming an outline. Keep the bottom check-in surface highly translucent so the scene remains legible through its frosted blur. After today's check-in completes, collapse that surface into a compact status chip; selecting another date or activating the compact chip expands it again.
+The selected-date glow must remain clearly visible against the stone's dark texture without becoming an outline. Keep the bottom check-in surface near-clear and highly translucent: the vegetation texture must stay visibly recognizable through a restrained frosted blur, with only a faint warm tint, edge reflection, and enough contrast for the text. Apply the same glass material to its expanded and compact states. After today's check-in completes, collapse that surface into a compact status chip; selecting another date or activating the compact chip expands it again.
 
 All five vegetation-state photographs participate in a full-viewport crossfade. Do not crop, mask, or restrict the transition to the lower vegetation region; every level image must use the same full-screen sizing and positioning so the entire scene changes together.
 
