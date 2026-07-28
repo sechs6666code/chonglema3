@@ -2,9 +2,9 @@
 
 ## Evidence
 
-- Source visual truth: `/workspace/scratch/b64449f8d5b4/upload/89542562-7F95-46E6-949F-BBB19C496069.jpeg`
-- Browser-rendered implementation screenshot: `/home/oai/share/chonglema3-qa-standalone-final.jpg`
-- Cloud browser implementation URL: `http://terminal.local:4173/`
+- Source visual truth: user-supplied reference image
+- Browser-rendered implementation screenshot: local QA capture
+- Browser implementation: local development preview
 - Source pixels: `709 × 1536`
 - Implementation pixels and CSS viewport: `1363 × 936`, device scale factor `1`
 - State: 2026-07-27, day 27 selected, no saved records, level 3 / 正常
@@ -70,5 +70,94 @@ No additional focused crop was required: this change concerns the outer runtime 
 - [x] App interactions preserved
 - [x] Images and console verified
 - [x] Runtime lock refreshed
+
+final result: passed
+
+---
+
+# 8月至次年6月石碑 · 逐月标定 QA
+
+## Evidence
+
+- Source visual truth: eleven user-supplied stone photographs mapped to August through the following June. The June source is `1024 × 1536`; the December source is `1024 × 1535`; the remaining sources are `1024 × 1536`.
+- Existing July source and its hand-authored anchors remain unchanged in intent and are now routed through the same month-stone registry.
+- Browser-rendered implementation: local cloud-browser preview at a `1363 × 936` CSS viewport, device scale factor `1`; the June full-view capture and source/implementation side-by-side capture were emitted inline during this QA run.
+- Focused implementation evidence: `qa/june-anchor-preview.jpg`.
+- Tested state: each month was simulated on its final valid calendar day so every available hotspot could be inspected and activated.
+- Comparison intent: preserve each photograph's silhouette and scale while placing the interactive selection glow and carved status mark on the exact printed numeral positions unique to that stone.
+
+## Month Mapping and Calibration
+
+| Month | Days | Final-row treatment | Rendered stone size |
+|---|---:|---|---|
+| August | 31 | Day 31 centered | `342 × 510` |
+| September | 30 | Full sixth row | `342 × 520` |
+| October | 31 | Day 31 centered | `342 × 522` |
+| November | 30 | Full sixth row | `342 × 502` |
+| December | 31 | Day 31 centered | `342 × 509` |
+| January | 31 | Day 31 centered | `260 × 557` |
+| February | 28 | Days 26–28 centered | `360 × 443` |
+| March | 31 | Day 31 centered | `355 × 463` |
+| April | 30 | Full sixth row | `344 × 470` |
+| May | 31 | Day 31 centered | `324 × 516` |
+| June | 30 | Full sixth row | `350 × 437` |
+
+Every month has its own independently measured column positions, row positions, final-row rule, and stage width. No uploaded month reuses another uploaded month's date grid. June uses independently measured centers at five columns and six rows rather than inheriting May or July coordinates.
+
+## Full-view Comparison
+
+- All eleven transparent stones were inspected in the complete page composition rather than as isolated cutouts.
+- The source silhouettes remain fully visible with no top, side, or base clipping.
+- The white source backgrounds are removed cleanly; no blocking white rectangles or visible edge halos remain.
+- The different stone proportions are deliberately rendered at different widths so that narrow January, broad February, and the later spring stones retain their source character without colliding with the header or check-in panel.
+- The June white studio background was removed with white-matte decontamination; its moss, grass, stones, and irregular upper edge remain intact without a white rectangle or blocking halo.
+- The previously empty September WebP was regenerated from the correct September source. It now renders at `958 × 1457` with 30 hotspots and zero broken images.
+
+## Focused Region Comparison
+
+- Each month's last valid day was selected and marked through the real “未破戒” interaction.
+- For August through June, the selected hotspot center and rendered status-mark center differed by exactly `0px` on both axes.
+- The warm selected-date glow was visually checked on days 31, 30, and February 28, including every special centered final row.
+- Hotspot counts matched the printed source day counts exactly: `31, 30, 31, 30, 31, 31, 28, 31, 30, 31, 30`.
+- June day 30 rendered with hotspot center and status-mark center both at `(763.046875, 770.25)` CSS pixels in the `1363 × 936` browser viewport.
+
+## Primary Interactions Tested
+
+- Selecting a printed day moves the warm glow to that exact numeral.
+- Recording “未破戒” places the supplied real mark asset at that same anchor.
+- Completing the current simulated day collapses the bottom check-in panel.
+- Selecting another day reopens the panel under the existing interaction rules.
+- Reset clears the monthly test record and returns the flower background to its initial state.
+- The month is selected automatically from the real calendar month; the QA-only date override is restricted to the local development host and does not run on production.
+
+## Accessibility and Content
+
+- Every date remains a semantic button with a month-appropriate Chinese accessible label.
+- Dates later than the simulated current date are disabled; the final-day checks intentionally simulated the last valid day so all printed dates could be inspected.
+- Stone images have month-specific descriptive alt text.
+- February exposes no invalid day 29–31 controls.
+
+## Findings
+
+- No actionable P0, P1, or P2 issue remains.
+- No shared-grid shortcut remains across the eleven uploaded stones.
+- No date-count mismatch, invalid extra date, selected-glow drift, or mark-position drift was found.
+- No source photograph was redrawn or replaced with CSS/SVG approximation.
+- The first September derivative was a zero-byte file (P1); it was replaced from the correct source and revalidated in the complete page composition.
+
+## Validation
+
+- [x] 11 uploaded months mapped from August through the following June
+- [x] Existing July retained
+- [x] 11 independent date calibrations
+- [x] Correct day counts, including 28-day February
+- [x] Centered partial final rows
+- [x] Per-stone width calibration
+- [x] Selection glow centered on printed numerals
+- [x] Status marks centered on selected hotspots
+- [x] Production build passed
+- [x] 28 protected mobile runtime files intact
+- [x] 4 Sites worker tests passed
+- [x] Full-screen and focused-region visual review passed
 
 final result: passed

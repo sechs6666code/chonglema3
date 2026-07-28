@@ -12,6 +12,8 @@ The selected-date glow must remain clearly visible against the stone's dark text
 
 All five vegetation-state photographs participate in a full-viewport crossfade. Do not crop, mask, or restrict the transition to the lower vegetation region; every level image must use the same full-screen sizing and positioning so the entire scene changes together.
 
+Monthly stones are real supplied raster assets, not interchangeable skins. Keep one independently calibrated date grid per month and choose the stone from the real calendar month. Never reuse another month's anchors, invent missing dates, or leave a 31st hotspot on a 30-day stone. Preserve the centered 26–28 final row on February's 28-day stone, and keep June as a complete 5-column by 6-row grid ending at day 30. Tune each stone's rendered width for its own silhouette so narrow or squat stones remain clear of the header and check-in surface.
+
 Before planning or implementing any mobile-app change, read this `AGENTS.md` in full. It is the source of truth for the template's runtime and component guidance.
 
 Before making substantial visual changes, use the Product Design plugin's `get-context` skill when the visual source is unclear or no longer matches the current goal. When the user gives durable prototype-specific design feedback, preferences, or decisions, record them in `AGENTS.md`.

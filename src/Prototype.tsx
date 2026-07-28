@@ -6,25 +6,16 @@ import {
   type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
-import dateAnchorsData from "./date-anchors.json";
+import { getMonthStone } from "./month-stones";
 import { MobileScroll, useKeyboard } from "./mobile";
 
 type CheckStatus = "success" | "relapse";
-
-type DateAnchor = {
-  day: number;
-  x: number;
-  y: number;
-  width: number;
-  rotation: number;
-};
 
 type StoredState = {
   records: Record<string, CheckStatus>;
 };
 
 const STORAGE_KEY = "stone-checkin-demo-v1";
-const dateAnchors = dateAnchorsData as DateAnchor[];
 
 const levelMeta = {
   1: { label: "枯萎", image: "/assets/scene/source/level-1-wilted.jpg" },
@@ -59,6 +50,20 @@ function startOfDay(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
 
+function resolveToday() {
+  if (window.location.hostname === "terminal.local") {
+    const previewDate = new URLSearchParams(window.location.search).get(
+      "previewDate",
+    );
+    if (previewDate && /^\d{4}-\d{2}-\d{2}$/.test(previewDate)) {
+      const [year, month, day] = previewDate.split("-").map(Number);
+      return startOfDay(new Date(year, month - 1, day));
+    }
+  }
+
+  return startOfDay(new Date());
+}
+
 function calculateLevel(records: Record<string, CheckStatus>) {
   return Object.keys(records)
     .sort()
@@ -83,10 +88,16 @@ function loadState(): StoredState {
 
 export default function Prototype() {
   const keyboard = useKeyboard();
-  const today = useMemo(() => startOfDay(new Date()), []);
+  const today = useMemo(resolveToday, []);
   const todayDay = today.getDate();
-  const monthDays = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-  const [selectedDay, setSelectedDay] = useState(Math.min(todayDay, 31));
+  const monthStone = useMemo(() => getMonthStone(today.getMonth() + 1), [today]);
+  const calendarMonthDays = new Date(
+    today.getFullYear(),
+    today.getMonth() + 1,
+    0,
+  ).getDate();
+  const monthDays = Math.min(calendarMonthDays, monthStone.days);
+  const [selectedDay, setSelectedDay] = useState(Math.min(todayDay, monthDays));
   const [state, setState] = useState<StoredState>(loadState);
   const [feedback, setFeedback] = useState("");
   const [secondaryOpen, setSecondaryOpen] = useState(false);
@@ -175,7 +186,7 @@ export default function Prototype() {
   const resetDemo = () => {
     keyboard.hide();
     setState(defaultState);
-    setSelectedDay(Math.min(todayDay, 31));
+    setSelectedDay(Math.min(todayDay, monthDays));
     setSecondaryOpen(false);
     setPanelCollapsed(false);
     setFeedback("石碑已恢复到初始状态");
@@ -278,17 +289,24 @@ export default function Prototype() {
         </header>
 
         <section className="monument-scene" aria-label="本月石碑打卡记录">
-          <div className="stone-stage">
+          <div
+            className="stone-stage"
+            style={
+              {
+                "--stone-stage-width": monthStone.stageWidth,
+              } as CSSProperties
+            }
+          >
             <img
               className="stone-image"
-              src="/assets/scene/stone.webp"
-              alt="刻有一至三十一日的古朴石碑"
+              src={monthStone.image}
+              alt={monthStone.alt}
               draggable={false}
               data-testid="stone-image"
             />
 
             <div className="stone-overlays">
-              {dateAnchors.map((anchor) => {
+              {monthStone.anchors.map((anchor) => {
                 const key = `${visibleMonthPrefix}${pad(anchor.day)}`;
                 const status = state.records[key];
                 if (!status) return null;
@@ -316,7 +334,7 @@ export default function Prototype() {
                 );
               })}
 
-              {dateAnchors.map((anchor) => {
+              {monthStone.anchors.map((anchor) => {
                 const unavailable = anchor.day > todayDay || anchor.day > monthDays;
                 const style = {
                   "--anchor-x": `${anchor.x}%`,
