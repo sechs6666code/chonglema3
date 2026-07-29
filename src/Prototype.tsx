@@ -23,6 +23,7 @@ import {
 import { useDrag } from "@use-gesture/react";
 import { AnimatePresence, motion } from "motion/react";
 import { getMonthStone, type MonthStone } from "./month-stones";
+import PwaManager from "./PwaManager";
 import {
   FlowStack,
   MobileScroll,
@@ -823,6 +824,18 @@ function HomeScreen() {
                   onChange={importBackup}
                 />
               </div>
+              <button
+                className="pwa-install-action"
+                type="button"
+                onClick={() => {
+                  keyboard.hide();
+                  setSecondaryOpen(false);
+                  window.dispatchEvent(new CustomEvent("stone-pwa-install"));
+                }}
+              >
+                <span>添加到桌面</span>
+                <small>安装为网页 App</small>
+              </button>
             </div>
           </div>
         </header>
@@ -1200,6 +1213,7 @@ export default function Prototype() {
   return (
     <MonumentContext.Provider value={contextValue}>
       <FlowStack initial={homeScreen} />
+      <PwaManager />
     </MonumentContext.Provider>
   );
 }

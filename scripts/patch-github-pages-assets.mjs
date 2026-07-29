@@ -6,6 +6,7 @@ import path from "node:path";
 const repositoryName = process.argv[2];
 const outputRoot = path.resolve("dist/client");
 const textExtensions = new Set([".css", ".html", ".js"]);
+const buildVersion = process.env.GITHUB_SHA?.slice(0, 12) ?? "local";
 
 if (!repositoryName || !/^[A-Za-z0-9._-]+$/.test(repositoryName)) {
   throw new Error("Pass a valid GitHub repository name.");
@@ -41,7 +42,8 @@ for (const file of files) {
     .replace(/url\((["']?)\/assets\//g, (_match, quote) => {
       replacements += 1;
       return `url(${quote}/${repositoryName}/assets/`;
-    });
+    })
+    .replaceAll("__BUILD_VERSION__", buildVersion);
 
   if (patched !== source) {
     await writeFile(file, patched);
@@ -58,6 +60,7 @@ const renamedAssets = new Map();
 for (const file of changedFiles) {
   const extension = path.extname(file);
   if (extension !== ".css" && extension !== ".js") continue;
+  if (path.basename(file) === "pwa-sw.js") continue;
 
   const content = await readFile(file);
   const digest = createHash("sha256").update(content).digest("hex").slice(0, 10);

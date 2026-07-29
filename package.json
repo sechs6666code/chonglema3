@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "assets:prepare": "python3 scripts/process_scene_assets.py",
+    "check:pwa": "node scripts/check-pwa.mjs dist/client",
     "check:runtime": "node scripts/check-mobile-runtime.mjs",
     "update:runtime-lock": "node scripts/update-mobile-runtime-lock.mjs",
     "test:runtime": "playwright test",
@@ -12,7 +13,8 @@
     "predev": "npm run check:runtime",
     "dev": "vite",
     "prebuild": "npm run check:runtime",
-    "build": "tsc && vite build && node scripts/prepare-sites-build.mjs"
+    "build": "tsc && vite build && node scripts/prepare-sites-build.mjs",
+    "postbuild": "npm run check:pwa"
   },
   "dependencies": {
     "@fontsource/roboto": "5.2.10",

@@ -326,6 +326,54 @@
   box-shadow: 0 0 0 3px rgba(191, 157, 93, 0.24);
 }
 
+.pwa-install-action {
+  display: grid;
+  width: 100%;
+  min-height: 40px;
+  padding: 7px 9px;
+  border: 0;
+  border-top: 1px solid rgba(221, 203, 162, 0.11);
+  border-radius: 0 0 9px 9px;
+  background: transparent;
+  color: rgba(243, 232, 205, 0.88);
+  font-family:
+    ui-sans-serif,
+    -apple-system,
+    BlinkMacSystemFont,
+    "PingFang SC",
+    sans-serif;
+  text-align: left;
+  transition:
+    background-color 150ms ease,
+    transform 120ms ease;
+}
+
+.pwa-install-action span {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+
+.pwa-install-action small {
+  margin-top: 2px;
+  color: rgba(224, 209, 178, 0.42);
+  font-size: 8px;
+}
+
+.pwa-install-action:active {
+  background: rgba(177, 147, 93, 0.14);
+  transform: scale(0.985);
+}
+
+.pwa-install-action:focus-visible {
+  outline: 1px solid rgba(202, 169, 105, 0.52);
+  outline-offset: -1px;
+  background: rgba(177, 147, 93, 0.1);
+}
+
+html[data-pwa-standalone="true"] .pwa-install-action {
+  display: none;
+}
+
 .monument-scene {
   position: relative;
   z-index: 1;
@@ -1397,6 +1445,204 @@
   bottom: calc(var(--mobile-safe-area-height) + 78px);
 }
 
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  overscroll-behavior: none;
+}
+
+@supports (height: 100svh) {
+  .standalone-app-shell {
+    height: 100dvh;
+    min-height: 100svh;
+  }
+}
+
+.pwa-dialog-backdrop {
+  position: fixed;
+  z-index: 250;
+  inset: 0;
+  display: grid;
+  align-items: end;
+  padding:
+    18px
+    16px
+    calc(env(safe-area-inset-bottom, 0px) + 16px);
+  background: rgba(8, 12, 10, 0.5);
+  backdrop-filter: blur(12px) saturate(0.72);
+  -webkit-backdrop-filter: blur(12px) saturate(0.72);
+  animation: pwa-backdrop-in 180ms ease both;
+}
+
+.pwa-dialog {
+  position: relative;
+  display: grid;
+  grid-template-columns: 50px 1fr;
+  gap: 12px;
+  width: min(100%, 430px);
+  margin: 0 auto;
+  padding: 17px;
+  border: 1px solid rgba(225, 207, 165, 0.18);
+  border-radius: 22px;
+  background:
+    linear-gradient(145deg, rgba(47, 51, 42, 0.97), rgba(20, 27, 23, 0.98));
+  box-shadow:
+    0 24px 70px rgba(5, 8, 6, 0.5),
+    inset 0 1px rgba(255, 244, 214, 0.08);
+  color: #f2e8ce;
+  animation: pwa-dialog-in 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.pwa-dialog-icon {
+  overflow: hidden;
+  width: 50px;
+  height: 50px;
+  border-radius: 13px;
+  box-shadow:
+    0 8px 22px rgba(6, 9, 7, 0.35),
+    inset 0 0 0 1px rgba(237, 219, 177, 0.1);
+}
+
+.pwa-dialog-icon img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.pwa-dialog-copy {
+  min-width: 0;
+}
+
+.pwa-dialog-copy > p:first-child {
+  margin: 1px 0 4px;
+  color: rgba(224, 205, 162, 0.48);
+  font-size: 10px;
+  letter-spacing: 0.13em;
+}
+
+.pwa-dialog-copy h2 {
+  margin: 0 0 11px;
+  font-family: Georgia, "Songti SC", serif;
+  font-size: 18px;
+  font-weight: 520;
+  letter-spacing: 0.03em;
+}
+
+.pwa-dialog-copy ol {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding-left: 20px;
+  color: rgba(244, 235, 213, 0.78);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.pwa-dialog-note {
+  margin: 0;
+  color: rgba(244, 235, 213, 0.78);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.pwa-dialog-copy small {
+  display: block;
+  margin-top: 12px;
+  color: rgba(222, 208, 178, 0.45);
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.pwa-dialog-close {
+  grid-column: 1 / -1;
+  min-height: 42px;
+  border: 1px solid rgba(220, 190, 129, 0.18);
+  border-radius: 13px;
+  background: rgba(183, 143, 76, 0.13);
+  color: #ead6aa;
+  font-size: 12px;
+  font-weight: 620;
+  letter-spacing: 0.08em;
+}
+
+.pwa-dialog-close:focus-visible,
+.pwa-update-toast button:focus-visible {
+  outline: 2px solid rgba(224, 185, 111, 0.62);
+  outline-offset: 2px;
+}
+
+.pwa-update-toast {
+  position: fixed;
+  z-index: 240;
+  right: 14px;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
+  left: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  width: min(calc(100% - 28px), 430px);
+  margin: 0 auto;
+  padding: 12px 12px 12px 14px;
+  border: 1px solid rgba(223, 204, 162, 0.17);
+  border-radius: 16px;
+  background: rgba(26, 34, 29, 0.94);
+  box-shadow: 0 18px 46px rgba(5, 8, 6, 0.35);
+  color: #f2e8ce;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.pwa-update-toast div {
+  display: grid;
+  gap: 3px;
+}
+
+.pwa-update-toast strong {
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.pwa-update-toast span {
+  color: rgba(231, 219, 193, 0.52);
+  font-size: 9px;
+}
+
+.pwa-update-toast button {
+  flex: none;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid rgba(217, 183, 114, 0.2);
+  border-radius: 10px;
+  background: rgba(182, 138, 67, 0.16);
+  color: #e9d09c;
+  font-size: 10px;
+  font-weight: 650;
+}
+
+@keyframes pwa-backdrop-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes pwa-dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+  }
+}
+
+@media (display-mode: standalone) {
+  body {
+    background: #1b292a;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .landscape-ground,
   .date-mark,
@@ -1411,6 +1657,11 @@
   .museum-tile {
     animation-duration: 1ms;
     transition-duration: 1ms;
+  }
+
+  .pwa-dialog-backdrop,
+  .pwa-dialog {
+    animation-duration: 1ms;
   }
 }
 
