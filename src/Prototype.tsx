@@ -14,6 +14,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type ChangeEvent,
   type CSSProperties,
   type Dispatch,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -31,10 +32,23 @@ import {
 } from "./mobile";
 
 type CheckStatus = "success" | "relapse";
+type BackupStatus = "checkin" | "relapse";
 type MonthState = "complete" | "current" | "future";
 
 type StoredState = {
   records: Record<string, CheckStatus>;
+};
+
+type BackupRecord = {
+  date: string;
+  status: BackupStatus;
+};
+
+type BackupFile = {
+  app: "石碑打卡";
+  exportVersion: 1;
+  exportedAt: string;
+  records: BackupRecord[];
 };
 
 type CycleMonth = {
@@ -63,6 +77,7 @@ type MonumentContextValue = {
 };
 
 const STORAGE_KEY = "stone-checkin-demo-v1";
+const EXPORT_VERSION = 1;
 const HISTORY_START_YEAR = 2026;
 const HISTORY_START_MONTH = 7;
 
@@ -107,6 +122,71 @@ function pad(value: number) {
 
 function dateKey(date: Date) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+function localIsoTimestamp(date: Date) {
+  const offsetMinutes = -date.getTimezoneOffset();
+  const sign = offsetMinutes >= 0 ? "+" : "-";
+  const absoluteOffset = Math.abs(offsetMinutes);
+  const offsetHours = pad(Math.floor(absoluteOffset / 60));
+  const offsetRemainder = pad(absoluteOffset % 60);
+
+  return `${dateKey(date)}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(
+    date.getSeconds(),
+  )}${sign}${offsetHours}:${offsetRemainder}`;
+}
+
+function isValidBackupDate(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return false;
+
+  const [, yearText, monthText, dayText] = match;
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+
+  return (
+    parsed.getUTCFullYear() === year &&
+    parsed.getUTCMonth() === month - 1 &&
+    parsed.getUTCDate() === day
+  );
+}
+
+function parseBackupFile(value: unknown): Record<string, CheckStatus> | null {
+  if (!value || typeof value !== "object") return null;
+  const candidate = value as {
+    exportVersion?: unknown;
+    records?: unknown;
+  };
+  if (
+    candidate.exportVersion !== EXPORT_VERSION ||
+    !Array.isArray(candidate.records)
+  ) {
+    return null;
+  }
+
+  const records: Record<string, CheckStatus> = {};
+  const seenDates = new Set<string>();
+
+  for (const entry of candidate.records) {
+    if (!entry || typeof entry !== "object") return null;
+    const record = entry as { date?: unknown; status?: unknown };
+    if (
+      !isValidBackupDate(record.date) ||
+      (record.status !== "checkin" && record.status !== "relapse") ||
+      seenDates.has(record.date)
+    ) {
+      return null;
+    }
+
+    seenDates.add(record.date);
+    records[record.date] =
+      record.status === "checkin" ? "success" : "relapse";
+  }
+
+  return records;
 }
 
 function monthPrefix(month: CycleMonth) {
@@ -414,6 +494,7 @@ function HomeScreen() {
     () => isCurrentMonth && Boolean(state.records[dateKey(today)]),
   );
   const secondaryControlsRef = useRef<HTMLDivElement>(null);
+  const backupInputRef = useRef<HTMLInputElement>(null);
 
   const selectedDate = dateForDay(visibleMonth, selectedDay);
   const selectedKey = dateKey(selectedDate);
@@ -546,6 +627,75 @@ function HomeScreen() {
     setFeedback("石碑已恢复到初始状态");
   };
 
+  const exportBackup = () => {
+    keyboard.hide();
+    const exportedAt = new Date();
+    const backup: BackupFile = {
+      app: "石碑打卡",
+      exportVersion: EXPORT_VERSION,
+      exportedAt: localIsoTimestamp(exportedAt),
+      records: Object.entries(state.records)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(
+          ([date, status]): BackupRecord => ({
+            date,
+            status: status === "success" ? "checkin" : "relapse",
+          }),
+        ),
+    };
+    const blob = new Blob([`${JSON.stringify(backup, null, 2)}\n`], {
+      type: "application/json;charset=utf-8",
+    });
+    const downloadUrl = URL.createObjectURL(blob);
+    const downloadLink = document.createElement("a");
+    downloadLink.href = downloadUrl;
+    downloadLink.download = `石碑打卡-备份-${dateKey(exportedAt)}.json`;
+    document.body.append(downloadLink);
+    downloadLink.click();
+    downloadLink.remove();
+    window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 0);
+    setSecondaryOpen(false);
+    setFeedback(`已导出 ${backup.records.length} 条打卡记录`);
+  };
+
+  const importBackup = async (event: ChangeEvent<HTMLInputElement>) => {
+    const input = event.currentTarget;
+    const [file] = Array.from(input.files ?? []);
+    if (!file) return;
+
+    keyboard.hide();
+    try {
+      const parsed = JSON.parse(await file.text()) as unknown;
+      const records = parseBackupFile(parsed);
+      if (!records) {
+        setSecondaryOpen(false);
+        setFeedback("文件格式不正确，无法导入");
+        return;
+      }
+
+      const confirmed = window.confirm(
+        "导入将覆盖当前所有本地记录，此操作不可撤销，确认导入吗？",
+      );
+      if (!confirmed) return;
+
+      const nextState = { records };
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextState));
+      setState(nextState);
+      setVisibleIndex(currentIndex);
+      setMonthDirection(1);
+      setSelectedDay(Math.min(todayDay, cycleMonths[currentIndex].days));
+      setPanelCollapsed(Boolean(records[dateKey(today)]));
+      setSecondaryOpen(false);
+      setFeedback(`导入成功，共恢复 ${Object.keys(records).length} 条记录`);
+      navigator.vibrate?.(18);
+    } catch {
+      setSecondaryOpen(false);
+      setFeedback("文件格式不正确，无法导入");
+    } finally {
+      input.value = "";
+    }
+  };
+
   const expandCheckinPanel = () => {
     if (!isCurrentMonth || !panelCollapsed) return;
     keyboard.hide();
@@ -607,8 +757,8 @@ function HomeScreen() {
               type="button"
               aria-label={
                 secondaryOpen
-                  ? "收起花草状态和重置选项"
-                  : "打开花草状态和重置选项"
+                  ? "收起更多选项"
+                  : "打开更多选项"
               }
               aria-expanded={secondaryOpen}
               aria-controls="secondary-panel"
@@ -649,6 +799,30 @@ function HomeScreen() {
                   恢复初始状态
                 </button>
               ) : null}
+              <div className="backup-actions" aria-label="数据备份与恢复">
+                <button type="button" onClick={exportBackup}>
+                  <span>导出备份</span>
+                  <small>保存 JSON 文件</small>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    keyboard.hide();
+                    backupInputRef.current?.click();
+                  }}
+                >
+                  <span>导入备份</span>
+                  <small>覆盖本地记录</small>
+                </button>
+                <input
+                  ref={backupInputRef}
+                  className="backup-file-input"
+                  type="file"
+                  accept=".json,application/json"
+                  aria-label="选择石碑打卡备份文件"
+                  onChange={importBackup}
+                />
+              </div>
             </div>
           </div>
         </header>
