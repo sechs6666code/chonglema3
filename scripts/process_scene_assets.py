@@ -83,11 +83,32 @@ def prepare_stone() -> None:
 
     alpha = np.full(luminance.shape, 255, dtype=np.float32)
     alpha[background] = np.clip((250 - luminance[background]) / 24 * 255, 0, 255)
+    normalized_alpha = alpha / 255
+    minimum = rgb.min(axis=2)
+    maximum = rgb.max(axis=2)
+    bottom_zone = np.indices(luminance.shape)[0] >= int(source.height * 0.87)
+    neutral_studio_debris = (
+        bottom_zone & (minimum >= 208) & ((maximum - minimum) <= 42)
+    )
+    bottom_matte = np.clip((244 - minimum) / 36, 0, 1)
+    normalized_alpha[neutral_studio_debris] = np.minimum(
+        normalized_alpha[neutral_studio_debris],
+        bottom_matte[neutral_studio_debris],
+    )
+    alpha = normalized_alpha * 255
+    # Remove the white studio matte from antialiased edge pixels. Keeping the
+    # connected-edge mask preserves pale lichen inside the stone while avoiding
+    # the bright cutout halo that appeared against the green landscape.
+    safe_alpha = np.maximum(normalized_alpha, 1 / 255)
+    foreground = (
+        rgb - (1 - safe_alpha[..., None]) * 255
+    ) / safe_alpha[..., None]
+    foreground = np.clip(foreground, 0, 255).astype(np.uint8)
     alpha_image = Image.fromarray(alpha.astype(np.uint8), "L").filter(
         ImageFilter.GaussianBlur(radius=0.55)
     )
 
-    rgba = source.convert("RGBA")
+    rgba = Image.fromarray(foreground, "RGB").convert("RGBA")
     rgba.putalpha(alpha_image)
     rgba = crop_to_alpha(rgba, margin=10)
     rgba.save(OUTPUT / "stone.webp", "WEBP", lossless=True, method=6)

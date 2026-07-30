@@ -18,6 +18,7 @@ import {
   type CSSProperties,
   type Dispatch,
   type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode,
   type SetStateAction,
 } from "react";
 import { useDrag } from "@use-gesture/react";
@@ -26,6 +27,7 @@ import { getMonthStone, type MonthStone } from "./month-stones";
 import PwaManager from "./PwaManager";
 import {
   FlowStack,
+  KeyboardInput,
   MobileScroll,
   type FlowScreen,
   useFlow,
@@ -35,19 +37,36 @@ import {
 type CheckStatus = "success" | "relapse";
 type BackupStatus = "checkin" | "relapse";
 type MonthState = "complete" | "current" | "future";
+type RelapseReason =
+  | "content"
+  | "late-night"
+  | "alone"
+  | "boredom"
+  | "stress"
+  | "other";
+
+type DayRecord = {
+  status: CheckStatus;
+  reasons?: RelapseReason[];
+  note?: string;
+  updatedAt?: string;
+};
 
 type StoredState = {
-  records: Record<string, CheckStatus>;
+  records: Record<string, DayRecord>;
 };
 
 type BackupRecord = {
   date: string;
   status: BackupStatus;
+  reasons?: RelapseReason[];
+  note?: string;
+  updatedAt?: string;
 };
 
 type BackupFile = {
   app: "石碑打卡";
-  exportVersion: 1;
+  exportVersion: 2;
   exportedAt: string;
   records: BackupRecord[];
 };
@@ -78,9 +97,27 @@ type MonumentContextValue = {
 };
 
 const STORAGE_KEY = "stone-checkin-demo-v1";
-const EXPORT_VERSION = 1;
+const SETTINGS_KEY = "stone-checkin-settings-v1";
+const EXPORT_VERSION = 2;
 const HISTORY_START_YEAR = 2026;
 const HISTORY_START_MONTH = 7;
+const MAX_RELAPSE_REASONS = 3;
+
+const relapseReasonMeta: Record<
+  RelapseReason,
+  { label: string; shortLabel: string }
+> = {
+  content: { label: "内容刺激", shortLabel: "内容刺激" },
+  "late-night": { label: "深夜", shortLabel: "深夜" },
+  alone: { label: "独处", shortLabel: "独处" },
+  boredom: { label: "无聊", shortLabel: "无聊" },
+  stress: { label: "压力", shortLabel: "压力" },
+  other: { label: "其他", shortLabel: "其他" },
+};
+
+const relapseReasonOrder = Object.keys(
+  relapseReasonMeta,
+) as RelapseReason[];
 
 const levelMeta = {
   1: { label: "枯萎", image: "/assets/scene/source/level-1-wilted.jpg" },
@@ -155,25 +192,77 @@ function isValidBackupDate(value: unknown): value is string {
   );
 }
 
-function parseBackupFile(value: unknown): Record<string, CheckStatus> | null {
+function isRelapseReason(value: unknown): value is RelapseReason {
+  return (
+    typeof value === "string" &&
+    Object.prototype.hasOwnProperty.call(relapseReasonMeta, value)
+  );
+}
+
+function normalizeDayRecord(value: unknown): DayRecord | null {
+  if (value === "success" || value === "relapse") {
+    return { status: value };
+  }
+  if (!value || typeof value !== "object") return null;
+
+  const candidate = value as {
+    status?: unknown;
+    reasons?: unknown;
+    note?: unknown;
+    updatedAt?: unknown;
+  };
+  if (candidate.status !== "success" && candidate.status !== "relapse") {
+    return null;
+  }
+
+  const reasons = Array.isArray(candidate.reasons)
+    ? candidate.reasons.filter(isRelapseReason).slice(0, MAX_RELAPSE_REASONS)
+    : [];
+  const note =
+    typeof candidate.note === "string"
+      ? candidate.note.trim().slice(0, 30)
+      : "";
+
+  return {
+    status: candidate.status,
+    ...(candidate.status === "relapse" && reasons.length ? { reasons } : {}),
+    ...(candidate.status === "relapse" && note ? { note } : {}),
+    ...(typeof candidate.updatedAt === "string"
+      ? { updatedAt: candidate.updatedAt }
+      : {}),
+  };
+}
+
+function parseBackupFile(value: unknown): Record<string, DayRecord> | null {
   if (!value || typeof value !== "object") return null;
   const candidate = value as {
     exportVersion?: unknown;
     records?: unknown;
   };
   if (
-    candidate.exportVersion !== EXPORT_VERSION ||
+    candidate.exportVersion !== 1 &&
+    candidate.exportVersion !== EXPORT_VERSION
+  ) {
+    return null;
+  }
+  if (
     !Array.isArray(candidate.records)
   ) {
     return null;
   }
 
-  const records: Record<string, CheckStatus> = {};
+  const records: Record<string, DayRecord> = {};
   const seenDates = new Set<string>();
 
   for (const entry of candidate.records) {
     if (!entry || typeof entry !== "object") return null;
-    const record = entry as { date?: unknown; status?: unknown };
+    const record = entry as {
+      date?: unknown;
+      status?: unknown;
+      reasons?: unknown;
+      note?: unknown;
+      updatedAt?: unknown;
+    };
     if (
       !isValidBackupDate(record.date) ||
       (record.status !== "checkin" && record.status !== "relapse") ||
@@ -183,8 +272,15 @@ function parseBackupFile(value: unknown): Record<string, CheckStatus> | null {
     }
 
     seenDates.add(record.date);
-    records[record.date] =
-      record.status === "checkin" ? "success" : "relapse";
+    const status = record.status === "checkin" ? "success" : "relapse";
+    const normalized = normalizeDayRecord({
+      status,
+      reasons: record.reasons,
+      note: record.note,
+      updatedAt: record.updatedAt,
+    });
+    if (!normalized) return null;
+    records[record.date] = normalized;
   }
 
   return records;
@@ -220,11 +316,11 @@ function resolveToday() {
   return startOfDay(new Date());
 }
 
-function calculateLevel(records: Record<string, CheckStatus>) {
+function calculateLevel(records: Record<string, DayRecord>) {
   return Object.keys(records)
     .sort()
     .reduce((level, key) => {
-      const change = records[key] === "success" ? 1 : -1;
+      const change = records[key].status === "success" ? 1 : -1;
       return Math.max(1, Math.min(5, level + change));
     }, 3);
 }
@@ -233,12 +329,79 @@ function loadState(): StoredState {
   try {
     const value = window.localStorage.getItem(STORAGE_KEY);
     if (!value) return defaultState;
-    const parsed = JSON.parse(value) as Partial<StoredState>;
+    const parsed = JSON.parse(value) as { records?: unknown };
+    const records: Record<string, DayRecord> = {};
+    if (parsed.records && typeof parsed.records === "object") {
+      for (const [key, value] of Object.entries(parsed.records)) {
+        const normalized = normalizeDayRecord(value);
+        if (isValidBackupDate(key) && normalized) records[key] = normalized;
+      }
+    }
     return {
-      records: parsed.records ?? {},
+      records,
     };
   } catch {
     return defaultState;
+  }
+}
+
+function loadSoundPreference() {
+  try {
+    const parsed = JSON.parse(
+      window.localStorage.getItem(SETTINGS_KEY) ?? "{}",
+    ) as { carvingSound?: unknown };
+    return parsed.carvingSound !== false;
+  } catch {
+    return true;
+  }
+}
+
+function playStoneSound(status: CheckStatus) {
+  try {
+    const AudioContextClass =
+      window.AudioContext ??
+      (
+        window as typeof window & {
+          webkitAudioContext?: typeof AudioContext;
+        }
+      ).webkitAudioContext;
+    if (!AudioContextClass) return;
+
+    const context = new AudioContextClass();
+    const duration = status === "relapse" ? 0.24 : 0.18;
+    const frameCount = Math.floor(context.sampleRate * duration);
+    const buffer = context.createBuffer(1, frameCount, context.sampleRate);
+    const channel = buffer.getChannelData(0);
+    for (let index = 0; index < frameCount; index += 1) {
+      const progress = index / frameCount;
+      const grit = Math.random() * 2 - 1;
+      channel[index] =
+        grit *
+        Math.pow(1 - progress, status === "relapse" ? 3.2 : 4.4) *
+        0.34;
+    }
+
+    const source = context.createBufferSource();
+    const filter = context.createBiquadFilter();
+    const gain = context.createGain();
+    source.buffer = buffer;
+    filter.type = "bandpass";
+    filter.frequency.value = status === "relapse" ? 390 : 520;
+    filter.Q.value = 0.72;
+    gain.gain.setValueAtTime(0.001, context.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.34, context.currentTime + 0.008);
+    gain.gain.exponentialRampToValueAtTime(
+      0.001,
+      context.currentTime + duration,
+    );
+    source.connect(filter).connect(gain).connect(context.destination);
+    source.start();
+    source.stop(context.currentTime + duration);
+    source.addEventListener("ended", () => void context.close(), {
+      once: true,
+    });
+  } catch {
+    // Sound is optional; recording must still succeed when the browser blocks it.
   }
 }
 
@@ -274,7 +437,7 @@ function getMonthState(month: CycleMonth, today: Date): MonthState {
 function getMonthStats(
   month: CycleMonth,
   today: Date,
-  records: Record<string, CheckStatus>,
+  records: Record<string, DayRecord>,
 ): MonthStats {
   const state = getMonthState(month, today);
   const scopeDays =
@@ -288,7 +451,7 @@ function getMonthStats(
   let relapse = 0;
 
   for (let day = 1; day <= scopeDays; day += 1) {
-    const status = records[`${prefix}${pad(day)}`];
+    const status = records[`${prefix}${pad(day)}`]?.status;
     if (status === "success") success += 1;
     if (status === "relapse") relapse += 1;
   }
@@ -347,21 +510,31 @@ function StoneFigure({
   selectedDay,
   availableThrough = 0,
   onSelectDay,
+  onInspectRelapse,
+  activeCarving,
   detail = false,
 }: {
   month: CycleMonth;
-  records: Record<string, CheckStatus>;
+  records: Record<string, DayRecord>;
   interactive?: boolean;
   selectedDay?: number;
   availableThrough?: number;
   onSelectDay?: (day: number) => void;
+  onInspectRelapse?: (day: number) => void;
+  activeCarving?: {
+    date: string;
+    status: CheckStatus;
+    token: number;
+  } | null;
   detail?: boolean;
 }) {
   const prefix = monthPrefix(month);
 
   return (
     <div
-      className={`stone-stage ${detail ? "stone-stage--detail" : ""}`}
+      className={`stone-stage ${detail ? "stone-stage--detail" : ""} ${
+        activeCarving?.date.startsWith(prefix) ? "is-carving-active" : ""
+      }`}
       style={
         {
           "--stone-stage-width": month.stone.stageWidth,
@@ -378,8 +551,10 @@ function StoneFigure({
 
       <div className="stone-overlays">
         {month.stone.anchors.map((anchor) => {
-          const status = records[`${prefix}${pad(anchor.day)}`];
-          if (!status) return null;
+          const recordKey = `${prefix}${pad(anchor.day)}`;
+          const record = records[recordKey];
+          if (!record) return null;
+          const isCarving = activeCarving?.date === recordKey;
           const style = {
             "--anchor-x": `${anchor.x}%`,
             "--anchor-y": `${anchor.y}%`,
@@ -389,10 +564,12 @@ function StoneFigure({
 
           return (
             <img
-              key={`mark-${anchor.day}`}
-              className={`date-mark date-mark--${status}`}
+              key={`mark-${anchor.day}-${isCarving ? activeCarving.token : "rest"}`}
+              className={`date-mark date-mark--${record.status} ${
+                isCarving ? "is-carving" : ""
+              }`}
               src={
-                status === "success"
+                record.status === "success"
                   ? "/assets/scene/mark-success.webp"
                   : "/assets/scene/mark-broken.webp"
               }
@@ -426,14 +603,256 @@ function StoneFigure({
                     unavailable ? "，日期尚未到来" : ""
                   }`}
                   aria-pressed={selectedDay === anchor.day}
-                  onClick={() => onSelectDay?.(anchor.day)}
+                onClick={() => onSelectDay?.(anchor.day)}
                   style={style}
                 />
               );
             })
           : null}
+
+        {!interactive && onInspectRelapse
+          ? month.stone.anchors.map((anchor) => {
+              const record = records[`${prefix}${pad(anchor.day)}`];
+              if (record?.status !== "relapse") return null;
+              const style = {
+                "--anchor-x": `${anchor.x}%`,
+                "--anchor-y": `${anchor.y}%`,
+                "--hotspot-width": `${Math.max(anchor.width, 11.5)}%`,
+              } as CSSProperties;
+
+              return (
+                <button
+                  key={`inspect-${anchor.day}`}
+                  className="date-hotspot date-hotspot--inspect"
+                  type="button"
+                  aria-label={`查看第 ${anchor.day} 日破戒原因`}
+                  onClick={() => onInspectRelapse(anchor.day)}
+                  style={style}
+                />
+              );
+            })
+          : null}
+
+        {activeCarving && activeCarving.date.startsWith(prefix) ? (
+          <div
+            key={`burst-${activeCarving.token}`}
+            className={`carving-burst carving-burst--${activeCarving.status}`}
+            aria-hidden="true"
+            style={
+              (() => {
+                const activeDay = Number(activeCarving.date.slice(-2));
+                const anchor = month.stone.anchors.find(
+                  (entry) => entry.day === activeDay,
+                );
+                return anchor
+                  ? ({
+                      "--anchor-x": `${anchor.x}%`,
+                      "--anchor-y": `${anchor.y}%`,
+                    } as CSSProperties)
+                  : undefined;
+              })()
+            }
+          >
+            {Array.from({ length: 8 }, (_, index) => (
+              <i key={index} />
+            ))}
+          </div>
+        ) : null}
       </div>
+      <div className="stone-foreground" aria-hidden="true" />
     </div>
+  );
+}
+
+function formatReasonSummary(record?: DayRecord) {
+  if (!record || record.status !== "relapse") return "";
+  const labels = (record.reasons ?? []).map(
+    (reason) => relapseReasonMeta[reason].shortLabel,
+  );
+  if (record.note && !labels.includes("其他")) labels.push("其他");
+  return labels.join(" · ");
+}
+
+function AppSheet({
+  open,
+  onOpenChange,
+  title,
+  description,
+  children,
+  compact = false,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  description?: string;
+  children: ReactNode;
+  compact?: boolean;
+}) {
+  const keyboard = useKeyboard();
+
+  useEffect(() => {
+    if (!open) return;
+    keyboard.hide();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onOpenChange(false);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [open]);
+
+  return (
+    <AnimatePresence>
+      {open ? (
+        <motion.div
+          className="app-sheet-layer"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.17 }}
+        >
+          <button
+            className="app-sheet-backdrop"
+            type="button"
+            aria-label="关闭面板"
+            onClick={() => onOpenChange(false)}
+          />
+          <motion.section
+            className={`app-sheet ${compact ? "is-compact" : ""}`}
+            role="dialog"
+            aria-modal="true"
+            aria-label={title}
+            initial={{ y: 80 }}
+            animate={{ y: 0 }}
+            exit={{ y: 90 }}
+            transition={{
+              type: "spring",
+              stiffness: 430,
+              damping: 39,
+              mass: 0.92,
+            }}
+          >
+            <div className="app-sheet-handle" aria-hidden="true" />
+            <header>
+              <h2>{title}</h2>
+              {description ? <p>{description}</p> : null}
+            </header>
+            {children}
+          </motion.section>
+        </motion.div>
+      ) : null}
+    </AnimatePresence>
+  );
+}
+
+function RelapseReasonSheet({
+  open,
+  dateLabel,
+  record,
+  onOpenChange,
+  onSave,
+}: {
+  open: boolean;
+  dateLabel: string;
+  record?: DayRecord;
+  onOpenChange: (open: boolean) => void;
+  onSave: (reasons: RelapseReason[], note: string) => void;
+}) {
+  const keyboard = useKeyboard();
+  const [selectedReasons, setSelectedReasons] = useState<RelapseReason[]>([]);
+  const [note, setNote] = useState("");
+  const [limitHint, setLimitHint] = useState("");
+
+  useEffect(() => {
+    if (!open) return;
+    setSelectedReasons(record?.reasons ?? []);
+    setNote(record?.note ?? "");
+    setLimitHint("");
+  }, [open, record]);
+
+  const toggleReason = (reason: RelapseReason) => {
+    setSelectedReasons((current) => {
+      if (current.includes(reason)) {
+        setLimitHint("");
+        return current.filter((entry) => entry !== reason);
+      }
+      if (current.length >= MAX_RELAPSE_REASONS) {
+        setLimitHint("最多选择 3 项");
+        navigator.vibrate?.(10);
+        return current;
+      }
+      setLimitHint("");
+      return [...current, reason];
+    });
+  };
+
+  return (
+    <AppSheet
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) keyboard.hide();
+        onOpenChange(nextOpen);
+      }}
+      title="记录当时的诱因"
+      description={`${dateLabel} · 完全选填，不作评判`}
+    >
+      <div className="reason-sheet" data-testid="relapse-reason-sheet">
+        <div className="reason-options" aria-label="破戒原因，可多选">
+          {relapseReasonOrder.map((reason) => (
+            <button
+              key={reason}
+              className={
+                selectedReasons.includes(reason) ? "is-selected" : ""
+              }
+              type="button"
+              aria-pressed={selectedReasons.includes(reason)}
+              onClick={() => toggleReason(reason)}
+            >
+              {relapseReasonMeta[reason].label}
+            </button>
+          ))}
+        </div>
+        <p className={`reason-limit ${limitHint ? "is-visible" : ""}`}>
+          {limitHint || `${selectedReasons.length} / ${MAX_RELAPSE_REASONS}`}
+        </p>
+        {selectedReasons.includes("other") ? (
+          <label className="reason-note">
+            <span>简单记一句</span>
+            <KeyboardInput
+              value={note}
+              maxLength={30}
+              placeholder="不超过30字"
+              onChange={(event) => setNote(event.currentTarget.value)}
+            />
+            <small>{note.length} / 30</small>
+          </label>
+        ) : null}
+        <div className="reason-sheet-actions">
+          <button
+            className="reason-skip"
+            type="button"
+            onClick={() => {
+              keyboard.hide();
+              onOpenChange(false);
+            }}
+          >
+            暂不记录
+          </button>
+          <button
+            className="reason-save"
+            type="button"
+            onClick={() => {
+              keyboard.hide();
+              onSave(
+                selectedReasons,
+                selectedReasons.includes("other") ? note.trim() : "",
+              );
+            }}
+          >
+            保存
+          </button>
+        </div>
+      </div>
+    </AppSheet>
   );
 }
 
@@ -494,12 +913,47 @@ function HomeScreen() {
   const [panelCollapsed, setPanelCollapsed] = useState(
     () => isCurrentMonth && Boolean(state.records[dateKey(today)]),
   );
+  const [soundEnabled, setSoundEnabled] = useState(loadSoundPreference);
+  const [activeCarving, setActiveCarving] = useState<{
+    date: string;
+    status: CheckStatus;
+    token: number;
+  } | null>(null);
+  const [reasonSheetKey, setReasonSheetKey] = useState<string | null>(null);
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
+  const [replaceConfirmOpen, setReplaceConfirmOpen] = useState(false);
   const secondaryControlsRef = useRef<HTMLDivElement>(null);
   const backupInputRef = useRef<HTMLInputElement>(null);
+  const carvingTimerRef = useRef<number | null>(null);
+  const reasonTimerRef = useRef<number | null>(null);
+  const collapseTimerRef = useRef<number | null>(null);
 
   const selectedDate = dateForDay(visibleMonth, selectedDay);
   const selectedKey = dateKey(selectedDate);
-  const selectedStatus = state.records[selectedKey];
+  const selectedRecord = state.records[selectedKey];
+  const selectedStatus = selectedRecord?.status;
+
+  useEffect(
+    () => () => {
+      if (carvingTimerRef.current) {
+        window.clearTimeout(carvingTimerRef.current);
+      }
+      if (reasonTimerRef.current) {
+        window.clearTimeout(reasonTimerRef.current);
+      }
+      if (collapseTimerRef.current) {
+        window.clearTimeout(collapseTimerRef.current);
+      }
+    },
+    [],
+  );
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      SETTINGS_KEY,
+      JSON.stringify({ carvingSound: soundEnabled }),
+    );
+  }, [soundEnabled]);
 
   useEffect(() => {
     if (!secondaryOpen) return;
@@ -577,7 +1031,7 @@ function HomeScreen() {
     },
   );
 
-  const updateRecord = (status: CheckStatus) => {
+  const commitRecord = (status: CheckStatus) => {
     if (
       !isCurrentMonth ||
       selectedDay > todayDay ||
@@ -586,15 +1040,25 @@ function HomeScreen() {
       return;
     }
     keyboard.hide();
-    if (selectedStatus === status) {
-      setFeedback(`第 ${selectedDay} 日已经记录为“${statusLabels[status]}”`);
-      if (selectedDay === todayDay) setPanelCollapsed(true);
-      return;
-    }
-
-    const records = { ...state.records, [selectedKey]: status };
+    const previousRecord = state.records[selectedKey];
+    const nextRecord: DayRecord = {
+      status,
+      updatedAt: localIsoTimestamp(new Date()),
+      ...(status === "relapse" && previousRecord?.status === "relapse"
+        ? {
+            ...(previousRecord.reasons?.length
+              ? { reasons: previousRecord.reasons }
+              : {}),
+            ...(previousRecord.note ? { note: previousRecord.note } : {}),
+          }
+        : {}),
+    };
+    const records = { ...state.records, [selectedKey]: nextRecord };
     const nextLevel = calculateLevel(records);
     setState({ records });
+    const token = Date.now();
+    setActiveCarving({ date: selectedKey, status, token });
+    if (soundEnabled) playStoneSound(status);
 
     navigator.vibrate?.(status === "success" ? 18 : [20, 30, 20]);
     setFeedback(
@@ -602,7 +1066,57 @@ function HomeScreen() {
         statusLabels[status]
       }” · 档位 ${currentLevel} → ${nextLevel}`,
     );
-    if (selectedDay === todayDay) setPanelCollapsed(true);
+    if (carvingTimerRef.current) {
+      window.clearTimeout(carvingTimerRef.current);
+    }
+    carvingTimerRef.current = window.setTimeout(
+      () => setActiveCarving(null),
+      status === "relapse" ? 1180 : 1040,
+    );
+
+    if (selectedDay === todayDay) {
+      if (collapseTimerRef.current) {
+        window.clearTimeout(collapseTimerRef.current);
+      }
+      collapseTimerRef.current = window.setTimeout(
+        () => setPanelCollapsed(true),
+        920,
+      );
+    }
+
+    if (status === "relapse") {
+      if (reasonTimerRef.current) {
+        window.clearTimeout(reasonTimerRef.current);
+      }
+      reasonTimerRef.current = window.setTimeout(
+        () => setReasonSheetKey(selectedKey),
+        880,
+      );
+    }
+  };
+
+  const updateRecord = (status: CheckStatus) => {
+    if (selectedStatus === status) {
+      if (status === "relapse") {
+        setReasonSheetKey(selectedKey);
+        return;
+      }
+      setFeedback(`第 ${selectedDay} 日已经记录为“${statusLabels[status]}”`);
+      if (selectedDay === todayDay) setPanelCollapsed(true);
+      return;
+    }
+
+    if (
+      status === "success" &&
+      selectedRecord?.status === "relapse" &&
+      ((selectedRecord.reasons?.length ?? 0) > 0 || selectedRecord.note)
+    ) {
+      keyboard.hide();
+      setReplaceConfirmOpen(true);
+      return;
+    }
+
+    commitRecord(status);
   };
 
   const clearSelectedRecord = () => {
@@ -626,9 +1140,10 @@ function HomeScreen() {
     setSecondaryOpen(false);
     setPanelCollapsed(false);
     setFeedback("石碑已恢复到初始状态");
+    setResetConfirmOpen(false);
   };
 
-  const exportBackup = () => {
+  const exportBackup = (closeMenu = true) => {
     keyboard.hide();
     const exportedAt = new Date();
     const backup: BackupFile = {
@@ -638,9 +1153,12 @@ function HomeScreen() {
       records: Object.entries(state.records)
         .sort(([left], [right]) => left.localeCompare(right))
         .map(
-          ([date, status]): BackupRecord => ({
+          ([date, record]): BackupRecord => ({
             date,
-            status: status === "success" ? "checkin" : "relapse",
+            status: record.status === "success" ? "checkin" : "relapse",
+            ...(record.reasons?.length ? { reasons: record.reasons } : {}),
+            ...(record.note ? { note: record.note } : {}),
+            ...(record.updatedAt ? { updatedAt: record.updatedAt } : {}),
           }),
         ),
     };
@@ -655,7 +1173,7 @@ function HomeScreen() {
     downloadLink.click();
     downloadLink.remove();
     window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 0);
-    setSecondaryOpen(false);
+    if (closeMenu) setSecondaryOpen(false);
     setFeedback(`已导出 ${backup.records.length} 条打卡记录`);
   };
 
@@ -722,6 +1240,7 @@ function HomeScreen() {
     : selectedDay > todayDay
       ? "尚未到来"
       : "等待落刻";
+  const selectedReasonSummary = formatReasonSummary(selectedRecord);
 
   const openGallery = () => {
     keyboard.hide();
@@ -791,17 +1310,12 @@ function HomeScreen() {
                 </strong>
                 <small>第 {currentLevel} 档 / 共 5 档</small>
               </div>
-              {isCurrentMonth ? (
-                <button
-                  className="reset-button"
-                  type="button"
-                  onClick={resetDemo}
-                >
-                  恢复初始状态
-                </button>
-              ) : null}
-              <div className="backup-actions" aria-label="数据备份与恢复">
-                <button type="button" onClick={exportBackup}>
+              <div
+                className="secondary-menu-section backup-actions"
+                aria-label="数据备份与恢复"
+              >
+                <span className="secondary-section-label">数据</span>
+                <button type="button" onClick={() => exportBackup()}>
                   <span>导出备份</span>
                   <small>保存 JSON 文件</small>
                 </button>
@@ -824,18 +1338,53 @@ function HomeScreen() {
                   onChange={importBackup}
                 />
               </div>
-              <button
-                className="pwa-install-action"
-                type="button"
-                onClick={() => {
-                  keyboard.hide();
-                  setSecondaryOpen(false);
-                  window.dispatchEvent(new CustomEvent("stone-pwa-install"));
-                }}
+              <div
+                className="secondary-menu-section app-actions"
+                aria-label="应用设置"
               >
-                <span>添加到桌面</span>
-                <small>安装为网页 App</small>
-              </button>
+                <span className="secondary-section-label">应用</span>
+                <button
+                  className="sound-toggle"
+                  type="button"
+                  aria-pressed={soundEnabled}
+                  onClick={() => setSoundEnabled((enabled) => !enabled)}
+                >
+                  <span>落刻音效</span>
+                  <small>{soundEnabled ? "已开启" : "已关闭"}</small>
+                </button>
+                <button
+                  className="pwa-install-action"
+                  type="button"
+                  onClick={() => {
+                    keyboard.hide();
+                    setSecondaryOpen(false);
+                    window.dispatchEvent(new CustomEvent("stone-pwa-install"));
+                  }}
+                >
+                  <span>添加到桌面</span>
+                  <small>安装为网页 App</small>
+                </button>
+              </div>
+              {isCurrentMonth ? (
+                <div
+                  className="secondary-menu-section danger-actions"
+                  aria-label="危险操作"
+                >
+                  <span className="secondary-section-label">危险操作</span>
+                  <button
+                    className="reset-button"
+                    type="button"
+                    onClick={() => {
+                      keyboard.hide();
+                      setSecondaryOpen(false);
+                      setResetConfirmOpen(true);
+                    }}
+                  >
+                    <span>恢复初始状态</span>
+                    <small>清除全部本地数据</small>
+                  </button>
+                </div>
+              ) : null}
             </div>
           </div>
         </header>
@@ -871,6 +1420,7 @@ function HomeScreen() {
                 interactive={isCurrentMonth}
                 selectedDay={isCurrentMonth ? selectedDay : undefined}
                 availableThrough={isCurrentMonth ? todayDay : 0}
+                activeCarving={activeCarving}
                 onSelectDay={(day) => {
                   keyboard.hide();
                   setSelectedDay(day);
@@ -912,6 +1462,11 @@ function HomeScreen() {
                 <div>
                   <p>第 {selectedDay} 日</p>
                   <strong>{selectedRecordLabel}</strong>
+                  {selectedReasonSummary ? (
+                    <small className="selected-reason-summary">
+                      {selectedReasonSummary}
+                    </small>
+                  ) : null}
                 </div>
                 <div className="rolling-score">
                   <span>当前档位</span>
@@ -1002,6 +1557,108 @@ function HomeScreen() {
         >
           {feedback}
         </div>
+
+        <RelapseReasonSheet
+          open={Boolean(reasonSheetKey)}
+          dateLabel={
+            reasonSheetKey
+              ? `${Number(reasonSheetKey.slice(5, 7))}月${Number(
+                  reasonSheetKey.slice(8, 10),
+                )}日`
+              : ""
+          }
+          record={
+            reasonSheetKey ? state.records[reasonSheetKey] : undefined
+          }
+          onOpenChange={(open) => {
+            if (!open) setReasonSheetKey(null);
+          }}
+          onSave={(reasons, note) => {
+            if (!reasonSheetKey) return;
+            const record = state.records[reasonSheetKey];
+            if (!record || record.status !== "relapse") {
+              setReasonSheetKey(null);
+              return;
+            }
+            setState({
+              records: {
+                ...state.records,
+                [reasonSheetKey]: {
+                  ...record,
+                  ...(reasons.length ? { reasons } : { reasons: undefined }),
+                  ...(note ? { note } : { note: undefined }),
+                  updatedAt: localIsoTimestamp(new Date()),
+                },
+              },
+            });
+            setReasonSheetKey(null);
+            setFeedback(reasons.length || note ? "诱因已记下" : "已保存");
+          }}
+        />
+
+        <AppSheet
+          open={replaceConfirmOpen}
+          onOpenChange={setReplaceConfirmOpen}
+          title="改为未破戒？"
+          description="原有破戒原因会随记录一起清除"
+          compact
+        >
+          <div className="confirmation-sheet">
+            <p>日期状态将被改写，已记录的诱因不会保留。</p>
+            <div className="confirmation-actions">
+              <button
+                type="button"
+                onClick={() => setReplaceConfirmOpen(false)}
+              >
+                取消
+              </button>
+              <button
+                className="confirm-primary"
+                type="button"
+                onClick={() => {
+                  setReplaceConfirmOpen(false);
+                  commitRecord("success");
+                }}
+              >
+                确认改写
+              </button>
+            </div>
+          </div>
+        </AppSheet>
+
+        <AppSheet
+          open={resetConfirmOpen}
+          onOpenChange={setResetConfirmOpen}
+          title="恢复初始状态"
+          description="这是不可撤销的危险操作"
+          compact
+        >
+          <div
+            className="confirmation-sheet confirmation-sheet--danger"
+            data-testid="reset-confirmation"
+          >
+            <p>将清除全部打卡记录与破戒原因，无法撤销。</p>
+            <button
+              className="backup-before-reset"
+              type="button"
+              onClick={() => exportBackup(false)}
+            >
+              先导出备份
+            </button>
+            <div className="confirmation-actions">
+              <button type="button" onClick={() => setResetConfirmOpen(false)}>
+                取消
+              </button>
+              <button
+                className="confirm-danger"
+                type="button"
+                onClick={resetDemo}
+              >
+                确认清除
+              </button>
+            </div>
+          </div>
+        </AppSheet>
       </main>
     </MobileScroll>
   );
@@ -1106,9 +1763,12 @@ function GalleryScreen() {
 function MonthDetailScreen({ month }: { month: CycleMonth }) {
   const flow = useFlow();
   const keyboard = useKeyboard();
-  const { today, state } = useMonument();
+  const { today, state, setState, setFeedback } = useMonument();
   const stateForMonth = getMonthState(month, today);
   const stats = getMonthStats(month, today, state.records);
+  const [reasonDay, setReasonDay] = useState<number | null>(null);
+  const reasonKey =
+    reasonDay === null ? null : `${monthPrefix(month)}${pad(reasonDay)}`;
 
   return (
     <MobileScroll className="gallery-screen">
@@ -1143,6 +1803,7 @@ function MonthDetailScreen({ month }: { month: CycleMonth }) {
           <StoneFigure
             month={month}
             records={state.records}
+            onInspectRelapse={setReasonDay}
             detail
           />
         </section>
@@ -1157,6 +1818,38 @@ function MonthDetailScreen({ month }: { month: CycleMonth }) {
             {stateForMonth === "complete" ? ` · 本月共 ${month.days} 日` : ""}
           </p>
         </section>
+
+        <RelapseReasonSheet
+          open={reasonDay !== null}
+          dateLabel={
+            reasonDay === null ? "" : `${month.month}月${reasonDay}日`
+          }
+          record={reasonKey ? state.records[reasonKey] : undefined}
+          onOpenChange={(open) => {
+            if (!open) setReasonDay(null);
+          }}
+          onSave={(reasons, note) => {
+            if (!reasonKey) return;
+            const record = state.records[reasonKey];
+            if (!record || record.status !== "relapse") {
+              setReasonDay(null);
+              return;
+            }
+            setState({
+              records: {
+                ...state.records,
+                [reasonKey]: {
+                  ...record,
+                  ...(reasons.length ? { reasons } : { reasons: undefined }),
+                  ...(note ? { note } : { note: undefined }),
+                  updatedAt: localIsoTimestamp(new Date()),
+                },
+              },
+            });
+            setReasonDay(null);
+            setFeedback("诱因记录已更新");
+          }}
+        />
       </main>
     </MobileScroll>
   );

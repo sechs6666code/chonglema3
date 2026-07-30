@@ -25,6 +25,110 @@ test.beforeEach(async ({ page }) => {
   await page.reload();
 });
 
+test("home menu exposes PWA install guidance", async ({ page }) => {
+  await page.getByRole("button", { name: "打开更多选项" }).click();
+  await expect(
+    page.getByRole("button", { name: /添加到桌面/ }),
+  ).toBeVisible();
+
+  await page.getByRole("button", { name: /添加到桌面/ }).click();
+  const guide = page.getByTestId("pwa-install-guide");
+  await expect(guide).toBeVisible();
+  await expect(guide.getByText("独立网页 App")).toBeVisible();
+  await expect(
+    guide.getByText(/安装后将以独立全屏窗口打开/),
+  ).toBeVisible();
+
+  await guide.getByRole("button", { name: "知道了" }).click();
+  await expect(guide).toHaveCount(0);
+});
+
+test("relapse carving opens optional reason capture and persists metadata", async ({
+  page,
+}) => {
+  await page.getByTestId("relapse-button").click();
+  await expect(page.locator(".date-mark--relapse.is-carving")).toBeVisible();
+
+  const reasonSheet = page.getByTestId("relapse-reason-sheet");
+  await expect(reasonSheet).toBeVisible();
+  await reasonSheet.getByRole("button", { name: "深夜" }).click();
+  await reasonSheet.getByRole("button", { name: "独处" }).click();
+  await reasonSheet.getByRole("button", { name: "保存" }).click();
+  await expect(reasonSheet).toHaveCount(0);
+
+  const stored = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("stone-checkin-demo-v1") ?? "{}"),
+  );
+  expect(stored.records["2026-07-28"]).toMatchObject({
+    status: "relapse",
+    reasons: ["late-night", "alone"],
+  });
+});
+
+test("reset lives in a danger section and requires confirmation", async ({
+  page,
+}) => {
+  await page.evaluate(() => {
+    localStorage.setItem(
+      "stone-checkin-demo-v1",
+      JSON.stringify({
+        records: {
+          "2026-07-28": { status: "success" },
+        },
+      }),
+    );
+  });
+  await page.reload();
+
+  await page.getByRole("button", { name: "打开更多选项" }).click();
+  await expect(page.getByText("危险操作")).toBeVisible();
+  await page.getByRole("button", { name: /恢复初始状态/ }).click();
+
+  const confirmation = page.getByTestId("reset-confirmation");
+  await expect(confirmation).toBeVisible();
+  await expect(confirmation.getByRole("button", { name: "先导出备份" })).toBeVisible();
+  await confirmation.getByRole("button", { name: "取消" }).click();
+  await expect(confirmation).toHaveCount(0);
+
+  const afterCancel = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("stone-checkin-demo-v1") ?? "{}"),
+  );
+  expect(afterCancel.records["2026-07-28"].status).toBe("success");
+
+  await page.getByRole("button", { name: "打开更多选项" }).click();
+  await page.getByRole("button", { name: /恢复初始状态/ }).click();
+  await page.getByTestId("reset-confirmation").getByRole("button", {
+    name: "确认清除",
+  }).click();
+  const afterReset = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("stone-checkin-demo-v1") ?? "{}"),
+  );
+  expect(afterReset.records).toEqual({});
+});
+
+test("legacy string records migrate without losing status", async ({ page }) => {
+  await page.evaluate(() => {
+    localStorage.setItem(
+      "stone-checkin-demo-v1",
+      JSON.stringify({
+        records: {
+          "2026-07-27": "success",
+          "2026-07-28": "relapse",
+        },
+      }),
+    );
+  });
+  await page.reload();
+  await expect(page.locator(".date-mark--success")).toHaveCount(1);
+  await expect(page.locator(".date-mark--relapse")).toHaveCount(1);
+
+  const migrated = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("stone-checkin-demo-v1") ?? "{}"),
+  );
+  expect(migrated.records["2026-07-27"]).toMatchObject({ status: "success" });
+  expect(migrated.records["2026-07-28"]).toMatchObject({ status: "relapse" });
+});
+
 test("month swipes follow platform direction and non-current months are read-only", async ({
   page,
 }) => {
@@ -161,7 +265,9 @@ test("all twelve month details share the cavern background", async ({ page }) =>
   }
 });
 
-test("home more menu exports only sorted raw records", async ({ page }) => {
+test("home more menu exports sorted records with metadata schema", async ({
+  page,
+}) => {
   await page.evaluate(() => {
     localStorage.setItem(
       "stone-checkin-demo-v1",
@@ -195,7 +301,7 @@ test("home more menu exports only sorted raw records", async ({ page }) => {
   };
 
   expect(backup.app).toBe("石碑打卡");
-  expect(backup.exportVersion).toBe(1);
+  expect(backup.exportVersion).toBe(2);
   expect(backup.exportedAt).toMatch(
     /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/,
   );
@@ -205,7 +311,7 @@ test("home more menu exports only sorted raw records", async ({ page }) => {
   ]);
 });
 
-test("import requires confirmation, replaces records, and recalculates every view", async ({
+test("version 1 import remains compatible and recalculates every view", async ({
   page,
 }) => {
   await page.evaluate(() => {
@@ -249,7 +355,7 @@ test("import requires confirmation, replaces records, and recalculates every vie
     await page.evaluate(() =>
       JSON.parse(localStorage.getItem("stone-checkin-demo-v1") ?? "{}"),
     ),
-  ).toEqual({ records: { "2026-07-28": "success" } });
+  ).toEqual({ records: { "2026-07-28": { status: "success" } } });
 
   fileChooserPromise = page.waitForEvent("filechooser");
   await page.getByRole("button", { name: /导入备份/ }).click();
@@ -270,9 +376,9 @@ test("import requires confirmation, replaces records, and recalculates every vie
     ),
   ).toEqual({
     records: {
-      "2026-07-01": "relapse",
-      "2026-07-02": "success",
-      "2026-07-03": "success",
+      "2026-07-01": { status: "relapse" },
+      "2026-07-02": { status: "success" },
+      "2026-07-03": { status: "success" },
     },
   });
   await expect(page.getByTestId("level-label")).toContainText("茂盛");
@@ -312,5 +418,5 @@ test("invalid backup files never change local records", async ({ page }) => {
     await page.evaluate(() =>
       JSON.parse(localStorage.getItem("stone-checkin-demo-v1") ?? "{}"),
     ),
-  ).toEqual({ records: { "2026-07-01": "success" } });
+  ).toEqual({ records: { "2026-07-01": { status: "success" } } });
 });
