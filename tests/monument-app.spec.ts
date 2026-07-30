@@ -234,6 +234,77 @@ test("completed-month statistics include unlogged days and remain read-only", as
   await expect(detail.getByTestId("relapse-button")).toHaveCount(0);
 });
 
+test("completed months can be supplemented, sealed, and reopened", async ({
+  page,
+}) => {
+  await page.goto("/?previewDate=2026-08-03");
+  await page.evaluate(() => {
+    localStorage.setItem(
+      "stone-checkin-demo-v1",
+      JSON.stringify({
+        records: {
+          "2026-07-01": { status: "success" },
+          "2026-07-02": { status: "success" },
+          "2026-07-03": {
+            status: "relapse",
+            reasons: ["late-night"],
+          },
+        },
+      }),
+    );
+  });
+  await page.reload();
+
+  await page.getByRole("button", { name: "史迹" }).click();
+  await page
+    .getByRole("button", { name: "2026年7月，已完成" })
+    .click();
+
+  const prompt = page.getByTestId("seal-prompt");
+  await expect(prompt).toBeVisible();
+  await prompt.getByRole("button", { name: "先补记" }).click();
+
+  const editor = page.getByTestId("history-edit-panel");
+  await expect(editor).toBeVisible();
+  await expect(editor.getByText("7月4日")).toBeVisible();
+  await editor.getByRole("button", { name: "未破戒" }).click();
+  await editor.getByRole("button", { name: "完成" }).click();
+
+  const entry = page.getByTestId("seal-entry-panel");
+  await entry.getByRole("button", { name: "封存本月" }).click();
+  await page
+    .getByTestId("seal-prompt")
+    .getByRole("button", { name: "封存本月" })
+    .click();
+
+  const sealed = page.getByTestId("sealed-record");
+  await expect(sealed).toBeVisible();
+  await expect(sealed.getByText(/此月守 3 日，失 1 日，缺 27 日/)).toBeVisible();
+  await expect(sealed.getByText("深夜")).toBeVisible();
+
+  const stored = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("stone-checkin-demo-v1") ?? "{}"),
+  );
+  expect(stored.seals["2026-07"].summary).toMatchObject({
+    checkins: 3,
+    relapses: 1,
+    missing: 27,
+    longestStreak: 2,
+    topReasons: ["late-night"],
+  });
+
+  await sealed.getByRole("button", { name: "启封修改" }).click();
+  await page
+    .getByTestId("unseal-confirmation")
+    .getByRole("button", { name: "确认启封" })
+    .click();
+  await expect(page.getByTestId("history-edit-panel")).toBeVisible();
+  const reopened = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("stone-checkin-demo-v1") ?? "{}"),
+  );
+  expect(reopened.seals).toEqual({});
+});
+
 test("all twelve month details share the cavern background", async ({ page }) => {
   const cycleDates = [
     "2026-07-15",
@@ -355,7 +426,10 @@ test("version 1 import remains compatible and recalculates every view", async ({
     await page.evaluate(() =>
       JSON.parse(localStorage.getItem("stone-checkin-demo-v1") ?? "{}"),
     ),
-  ).toEqual({ records: { "2026-07-28": { status: "success" } } });
+  ).toEqual({
+    records: { "2026-07-28": { status: "success" } },
+    seals: {},
+  });
 
   fileChooserPromise = page.waitForEvent("filechooser");
   await page.getByRole("button", { name: /导入备份/ }).click();
@@ -380,6 +454,7 @@ test("version 1 import remains compatible and recalculates every view", async ({
       "2026-07-02": { status: "success" },
       "2026-07-03": { status: "success" },
     },
+    seals: {},
   });
   await expect(page.getByTestId("level-label")).toContainText("茂盛");
 
@@ -418,5 +493,8 @@ test("invalid backup files never change local records", async ({ page }) => {
     await page.evaluate(() =>
       JSON.parse(localStorage.getItem("stone-checkin-demo-v1") ?? "{}"),
     ),
-  ).toEqual({ records: { "2026-07-01": { status: "success" } } });
+  ).toEqual({
+    records: { "2026-07-01": { status: "success" } },
+    seals: {},
+  });
 });

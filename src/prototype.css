@@ -1596,6 +1596,35 @@ html[data-pwa-standalone="true"] .pwa-install-action {
   color: rgba(218, 184, 121, 0.74);
 }
 
+.museum-tile.is-sealed {
+  border-color: rgba(155, 125, 78, 0.34);
+  background: rgba(139, 107, 61, 0.055);
+}
+
+.museum-tile.is-sealed::after {
+  position: absolute;
+  z-index: 3;
+  top: 9px;
+  right: 8px;
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border: 1px solid rgba(188, 137, 82, 0.52);
+  border-radius: 4px;
+  background: rgba(68, 35, 26, 0.42);
+  box-shadow: 0 4px 12px rgba(4, 5, 4, 0.25);
+  color: rgba(218, 160, 96, 0.78);
+  content: "封";
+  font-family: "Songti SC", "STSong", serif;
+  font-size: 10px;
+  transform: rotate(-4deg);
+}
+
+.museum-tile.is-sealed .museum-month-label small {
+  color: rgba(218, 174, 111, 0.74);
+}
+
 .museum-tile.is-future .museum-month-label {
   opacity: 0.48;
 }
@@ -1677,6 +1706,330 @@ html[data-pwa-standalone="true"] .pwa-install-action {
 .detail-total {
   padding-top: 8px;
   border-top: 1px solid rgba(225, 210, 176, 0.08);
+}
+
+.history-edit-panel,
+.seal-entry-panel,
+.sealed-record {
+  width: min(100%, 520px);
+  margin: 10px auto 0;
+  border: 1px solid rgba(225, 204, 162, 0.16);
+  border-radius: 16px;
+  background:
+    linear-gradient(
+      145deg,
+      rgba(226, 204, 161, 0.075),
+      rgba(10, 15, 12, 0.12)
+    ),
+    rgba(9, 14, 11, 0.72);
+  box-shadow:
+    0 18px 42px rgba(3, 5, 3, 0.34),
+    inset 0 1px rgba(245, 229, 194, 0.08);
+  color: rgba(238, 229, 210, 0.86);
+  font-family:
+    ui-sans-serif,
+    -apple-system,
+    BlinkMacSystemFont,
+    "PingFang SC",
+    "Microsoft YaHei",
+    sans-serif;
+  backdrop-filter: blur(18px) saturate(0.78);
+  -webkit-backdrop-filter: blur(18px) saturate(0.78);
+}
+
+.history-edit-panel {
+  padding: 14px;
+}
+
+.history-edit-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.history-edit-heading > div {
+  display: grid;
+  gap: 2px;
+}
+
+.history-edit-heading small,
+.seal-entry-panel small {
+  color: rgba(219, 200, 164, 0.46);
+  font-size: 8px;
+  letter-spacing: 0.12em;
+}
+
+.history-edit-heading strong,
+.seal-entry-panel strong {
+  color: #eee4d0;
+  font-family: Georgia, "Songti SC", serif;
+  font-size: 15px;
+  font-weight: 560;
+  letter-spacing: 0.04em;
+}
+
+.history-edit-heading button,
+.unseal-action {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid rgba(211, 187, 139, 0.16);
+  border-radius: 10px;
+  background: rgba(219, 197, 155, 0.05);
+  color: rgba(229, 215, 186, 0.66);
+  font: inherit;
+  font-size: 9px;
+}
+
+.history-edit-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.history-edit-actions button {
+  min-height: 42px;
+  padding: 0 14px;
+  border: 1px solid rgba(213, 191, 149, 0.14);
+  border-radius: 12px;
+  background: rgba(221, 204, 170, 0.045);
+  color: rgba(235, 225, 205, 0.7);
+  font: inherit;
+  font-size: 11px;
+}
+
+.history-edit-actions button.is-active {
+  border-color: rgba(181, 143, 82, 0.48);
+  background: rgba(171, 129, 69, 0.18);
+  color: #eed39a;
+}
+
+.history-edit-actions button.is-relapse {
+  border-color: rgba(171, 101, 88, 0.5);
+  background: rgba(130, 65, 58, 0.2);
+  color: #e5b1a5;
+}
+
+.history-edit-actions button.history-clear {
+  color: rgba(219, 194, 178, 0.5);
+}
+
+.history-edit-actions button:disabled {
+  opacity: 0.32;
+}
+
+.seal-entry-panel {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+}
+
+.seal-entry-panel > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.seal-entry-panel > div:last-child {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.seal-entry-panel button,
+.seal-prompt-actions button,
+.unseal-confirmation button {
+  min-height: 42px;
+  border: 1px solid rgba(214, 190, 144, 0.16);
+  border-radius: 12px;
+  background: rgba(218, 195, 150, 0.05);
+  color: rgba(236, 225, 203, 0.72);
+  font: inherit;
+  font-size: 10px;
+}
+
+button.seal-primary-action {
+  border-color: rgba(190, 141, 76, 0.46);
+  background:
+    linear-gradient(145deg, rgba(181, 129, 66, 0.3), rgba(74, 46, 30, 0.26));
+  box-shadow:
+    inset 0 1px rgba(249, 219, 163, 0.1),
+    0 8px 22px rgba(5, 7, 5, 0.18);
+  color: #efd4a2;
+}
+
+.sealed-record {
+  position: relative;
+  display: grid;
+  gap: 15px;
+  padding: 22px 17px 16px;
+  overflow: hidden;
+  border-color: rgba(177, 128, 72, 0.28);
+  background:
+    radial-gradient(circle at 50% 0%, rgba(183, 130, 69, 0.13), transparent 44%),
+    rgba(10, 14, 11, 0.78);
+}
+
+.seal-emblem {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  margin: 0 auto;
+  place-items: center;
+  border: 1px solid rgba(198, 135, 75, 0.62);
+  border-radius: 5px;
+  background: rgba(92, 42, 31, 0.46);
+  box-shadow:
+    0 8px 22px rgba(4, 5, 4, 0.24),
+    inset 0 0 0 2px rgba(218, 156, 90, 0.05);
+  color: rgba(231, 167, 100, 0.82);
+  font-family: "Songti SC", "STSong", serif;
+  font-size: 15px;
+  transform: rotate(-3deg);
+}
+
+.seal-epitaph {
+  text-align: center;
+}
+
+.seal-epitaph p {
+  margin: 0;
+  color: rgba(238, 222, 192, 0.82);
+  font-family: Georgia, "Songti SC", "STSong", serif;
+  font-size: 13px;
+  line-height: 1.75;
+  letter-spacing: 0.06em;
+}
+
+.seal-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid rgba(220, 197, 153, 0.1);
+  border-radius: 12px;
+}
+
+.seal-summary > div {
+  display: grid;
+  gap: 3px;
+  padding: 10px 11px;
+}
+
+.seal-summary > div:nth-child(odd) {
+  border-right: 1px solid rgba(220, 197, 153, 0.08);
+}
+
+.seal-summary > div:nth-child(n + 3) {
+  border-top: 1px solid rgba(220, 197, 153, 0.08);
+}
+
+.seal-summary dt {
+  color: rgba(218, 197, 158, 0.42);
+  font-size: 8px;
+  letter-spacing: 0.08em;
+}
+
+.seal-summary dd {
+  margin: 0;
+  color: rgba(238, 226, 202, 0.78);
+  font-family: Georgia, "Songti SC", serif;
+  font-size: 11px;
+}
+
+.unseal-action {
+  justify-self: center;
+  color: rgba(211, 185, 151, 0.45);
+}
+
+.seal-ceremony-overlay {
+  position: absolute;
+  z-index: 8;
+  inset: 10% 12% 2%;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.seal-ceremony-overlay::before {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    112deg,
+    transparent 20%,
+    rgba(234, 189, 115, 0.18) 45%,
+    transparent 68%
+  );
+  content: "";
+  transform: translateX(-120%);
+  animation: seal-light-sweep 1.7s 0.25s ease-out both;
+}
+
+.seal-ceremony-overlay i {
+  position: absolute;
+  bottom: 7%;
+  left: 50%;
+  width: 54%;
+  height: 14%;
+  border-radius: 50%;
+  background: rgba(210, 196, 166, 0.15);
+  filter: blur(14px);
+  opacity: 0;
+  transform: translate(-50%, 16px) scale(0.7);
+  animation: seal-mist 2.2s ease-out both;
+}
+
+.seal-ceremony-overlay i:nth-child(2) {
+  left: 34%;
+  animation-delay: 0.18s;
+}
+
+.seal-ceremony-overlay i:nth-child(3) {
+  left: 68%;
+  animation-delay: 0.34s;
+}
+
+.detail-stone-wrap.is-sealing .stone-stage {
+  animation: seal-stone-focus 2.25s ease-in-out both;
+}
+
+@keyframes seal-light-sweep {
+  0% {
+    opacity: 0;
+    transform: translateX(-120%);
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(130%);
+  }
+}
+
+@keyframes seal-mist {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 18px) scale(0.72);
+  }
+  34% {
+    opacity: 0.64;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -34px) scale(1.18);
+  }
+}
+
+@keyframes seal-stone-focus {
+  0%,
+  100% {
+    filter: none;
+    transform: scale(1);
+  }
+  45% {
+    filter: brightness(1.07) sepia(0.08);
+    transform: scale(1.018);
+  }
 }
 
 .feedback-toast {
@@ -1813,6 +2166,41 @@ html[data-pwa-standalone="true"] .pwa-install-action {
     "PingFang SC",
     "Microsoft YaHei",
     sans-serif;
+}
+
+.seal-prompt {
+  display: grid;
+  gap: 15px;
+  padding: 0 20px 21px;
+}
+
+.seal-prompt .month-stats {
+  padding: 8px 3px;
+  border-top: 1px solid rgba(220, 198, 156, 0.08);
+  border-bottom: 1px solid rgba(220, 198, 156, 0.08);
+}
+
+.seal-prompt-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.seal-prompt-actions .seal-primary-action {
+  grid-column: 1 / -1;
+}
+
+.unseal-confirmation {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 0 20px 21px;
+}
+
+.unseal-confirmation button:last-child {
+  border-color: rgba(178, 104, 90, 0.42);
+  background: rgba(121, 58, 51, 0.2);
+  color: rgba(232, 178, 162, 0.8);
 }
 
 .reason-options {
@@ -2192,7 +2580,11 @@ body {
   .date-hotspot::before,
   .date-hotspot::after,
   .month-stone-transition,
-  .museum-tile {
+  .museum-tile,
+  .detail-stone-wrap.is-sealing .stone-stage,
+  .seal-ceremony-overlay,
+  .seal-ceremony-overlay::before,
+  .seal-ceremony-overlay i {
     animation-duration: 1ms;
     transition-duration: 1ms;
   }

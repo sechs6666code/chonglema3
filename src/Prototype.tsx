@@ -52,8 +52,24 @@ type DayRecord = {
   updatedAt?: string;
 };
 
+type MonthSealSummary = {
+  checkins: number;
+  relapses: number;
+  missing: number;
+  longestStreak: number;
+  topReasons: RelapseReason[];
+  vegetationLevel: number;
+};
+
+type MonthSeal = {
+  month: string;
+  sealedAt: string;
+  summary: MonthSealSummary;
+};
+
 type StoredState = {
   records: Record<string, DayRecord>;
+  seals: Record<string, MonthSeal>;
 };
 
 type BackupRecord = {
@@ -69,6 +85,7 @@ type BackupFile = {
   exportVersion: 2;
   exportedAt: string;
   records: BackupRecord[];
+  seals: MonthSeal[];
 };
 
 type CycleMonth = {
@@ -129,6 +146,7 @@ const levelMeta = {
 
 const defaultState: StoredState = {
   records: {},
+  seals: {},
 };
 
 const statusLabels: Record<CheckStatus, string> = {
@@ -233,7 +251,62 @@ function normalizeDayRecord(value: unknown): DayRecord | null {
   };
 }
 
-function parseBackupFile(value: unknown): Record<string, DayRecord> | null {
+function normalizeMonthSeal(value: unknown): MonthSeal | null {
+  if (!value || typeof value !== "object") return null;
+  const candidate = value as {
+    month?: unknown;
+    sealedAt?: unknown;
+    summary?: unknown;
+  };
+  if (
+    typeof candidate.month !== "string" ||
+    !/^\d{4}-\d{2}$/.test(candidate.month) ||
+    typeof candidate.sealedAt !== "string" ||
+    !candidate.summary ||
+    typeof candidate.summary !== "object"
+  ) {
+    return null;
+  }
+
+  const summary = candidate.summary as Record<string, unknown>;
+  const numericKeys = [
+    "checkins",
+    "relapses",
+    "missing",
+    "longestStreak",
+    "vegetationLevel",
+  ] as const;
+  if (
+    numericKeys.some(
+      (key) =>
+        typeof summary[key] !== "number" ||
+        !Number.isInteger(summary[key]) ||
+        Number(summary[key]) < 0,
+    ) ||
+    Number(summary.vegetationLevel) < 1 ||
+    Number(summary.vegetationLevel) > 5
+  ) {
+    return null;
+  }
+  const topReasons = Array.isArray(summary.topReasons)
+    ? summary.topReasons.filter(isRelapseReason).slice(0, 2)
+    : [];
+
+  return {
+    month: candidate.month,
+    sealedAt: candidate.sealedAt,
+    summary: {
+      checkins: Number(summary.checkins),
+      relapses: Number(summary.relapses),
+      missing: Number(summary.missing),
+      longestStreak: Number(summary.longestStreak),
+      topReasons,
+      vegetationLevel: Number(summary.vegetationLevel),
+    },
+  };
+}
+
+function parseBackupFile(value: unknown): StoredState | null {
   if (!value || typeof value !== "object") return null;
   const candidate = value as {
     exportVersion?: unknown;
@@ -252,6 +325,7 @@ function parseBackupFile(value: unknown): Record<string, DayRecord> | null {
   }
 
   const records: Record<string, DayRecord> = {};
+  const seals: Record<string, MonthSeal> = {};
   const seenDates = new Set<string>();
 
   for (const entry of candidate.records) {
@@ -283,7 +357,17 @@ function parseBackupFile(value: unknown): Record<string, DayRecord> | null {
     records[record.date] = normalized;
   }
 
-  return records;
+  if (candidate.exportVersion === EXPORT_VERSION) {
+    const sealEntries = (candidate as { seals?: unknown }).seals;
+    if (sealEntries !== undefined && !Array.isArray(sealEntries)) return null;
+    for (const entry of sealEntries ?? []) {
+      const seal = normalizeMonthSeal(entry);
+      if (!seal || seals[seal.month]) return null;
+      seals[seal.month] = seal;
+    }
+  }
+
+  return { records, seals };
 }
 
 function monthPrefix(month: CycleMonth) {
@@ -329,16 +413,24 @@ function loadState(): StoredState {
   try {
     const value = window.localStorage.getItem(STORAGE_KEY);
     if (!value) return defaultState;
-    const parsed = JSON.parse(value) as { records?: unknown };
+    const parsed = JSON.parse(value) as { records?: unknown; seals?: unknown };
     const records: Record<string, DayRecord> = {};
+    const seals: Record<string, MonthSeal> = {};
     if (parsed.records && typeof parsed.records === "object") {
       for (const [key, value] of Object.entries(parsed.records)) {
         const normalized = normalizeDayRecord(value);
         if (isValidBackupDate(key) && normalized) records[key] = normalized;
       }
     }
+    if (parsed.seals && typeof parsed.seals === "object") {
+      for (const [key, value] of Object.entries(parsed.seals)) {
+        const seal = normalizeMonthSeal(value);
+        if (seal && seal.month === key) seals[key] = seal;
+      }
+    }
     return {
       records,
+      seals,
     };
   } catch {
     return defaultState;
@@ -462,6 +554,85 @@ function getMonthStats(
     missing: scopeDays - success - relapse,
     scopeDays,
   };
+}
+
+function getMonthSealSummary(
+  month: CycleMonth,
+  records: Record<string, DayRecord>,
+): MonthSealSummary {
+  const prefix = monthPrefix(month);
+  let checkins = 0;
+  let relapses = 0;
+  let longestStreak = 0;
+  let currentStreak = 0;
+  const reasonCounts = new Map<RelapseReason, number>();
+
+  for (let day = 1; day <= month.days; day += 1) {
+    const record = records[`${prefix}${pad(day)}`];
+    if (record?.status === "success") {
+      checkins += 1;
+      currentStreak += 1;
+      longestStreak = Math.max(longestStreak, currentStreak);
+      continue;
+    }
+
+    currentStreak = 0;
+    if (record?.status !== "relapse") continue;
+    relapses += 1;
+    for (const reason of record.reasons ?? []) {
+      reasonCounts.set(reason, (reasonCounts.get(reason) ?? 0) + 1);
+    }
+  }
+
+  const monthEndKey = `${month.key}-${pad(month.days)}`;
+  const recordsThroughMonth = Object.fromEntries(
+    Object.entries(records).filter(([key]) => key <= monthEndKey),
+  );
+  const topReasons = [...reasonCounts.entries()]
+    .sort(([leftReason, leftCount], [rightReason, rightCount]) => {
+      if (rightCount !== leftCount) return rightCount - leftCount;
+      return (
+        relapseReasonOrder.indexOf(leftReason) -
+        relapseReasonOrder.indexOf(rightReason)
+      );
+    })
+    .slice(0, 2)
+    .map(([reason]) => reason);
+
+  return {
+    checkins,
+    relapses,
+    missing: month.days - checkins - relapses,
+    longestStreak,
+    topReasons,
+    vegetationLevel: calculateLevel(recordsThroughMonth),
+  };
+}
+
+function createMonthSeal(
+  month: CycleMonth,
+  records: Record<string, DayRecord>,
+): MonthSeal {
+  return {
+    month: month.key,
+    sealedAt: localIsoTimestamp(new Date()),
+    summary: getMonthSealSummary(month, records),
+  };
+}
+
+function sealEpitaph(seal: MonthSeal) {
+  const { checkins, relapses, missing } = seal.summary;
+  const ending =
+    checkins >= relapses + missing
+      ? "石有裂痕，志未曾断。"
+      : relapses > checkins
+        ? "痕虽深，来日仍可续刻。"
+        : "得失皆留，步履未停。";
+
+  return [
+    `此月守 ${checkins} 日，失 ${relapses} 日，缺 ${missing} 日。`,
+    ending,
+  ];
 }
 
 function initialCycleIndex(today: Date) {
@@ -1055,7 +1226,7 @@ function HomeScreen() {
     };
     const records = { ...state.records, [selectedKey]: nextRecord };
     const nextLevel = calculateLevel(records);
-    setState({ records });
+    setState({ ...state, records });
     const token = Date.now();
     setActiveCarving({ date: selectedKey, status, token });
     if (soundEnabled) playStoneSound(status);
@@ -1125,7 +1296,7 @@ function HomeScreen() {
     const records = { ...state.records };
     delete records[selectedKey];
     const nextLevel = calculateLevel(records);
-    setState({ records });
+    setState({ ...state, records });
     setPanelCollapsed(false);
     setFeedback(
       `已清除第 ${selectedDay} 日记录 · 档位 ${currentLevel} → ${nextLevel}`,
@@ -1161,6 +1332,9 @@ function HomeScreen() {
             ...(record.updatedAt ? { updatedAt: record.updatedAt } : {}),
           }),
         ),
+      seals: Object.values(state.seals).sort((left, right) =>
+        left.month.localeCompare(right.month),
+      ),
     };
     const blob = new Blob([`${JSON.stringify(backup, null, 2)}\n`], {
       type: "application/json;charset=utf-8",
@@ -1185,8 +1359,8 @@ function HomeScreen() {
     keyboard.hide();
     try {
       const parsed = JSON.parse(await file.text()) as unknown;
-      const records = parseBackupFile(parsed);
-      if (!records) {
+      const nextState = parseBackupFile(parsed);
+      if (!nextState) {
         setSecondaryOpen(false);
         setFeedback("文件格式不正确，无法导入");
         return;
@@ -1197,15 +1371,16 @@ function HomeScreen() {
       );
       if (!confirmed) return;
 
-      const nextState = { records };
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextState));
       setState(nextState);
       setVisibleIndex(currentIndex);
       setMonthDirection(1);
       setSelectedDay(Math.min(todayDay, cycleMonths[currentIndex].days));
-      setPanelCollapsed(Boolean(records[dateKey(today)]));
+      setPanelCollapsed(Boolean(nextState.records[dateKey(today)]));
       setSecondaryOpen(false);
-      setFeedback(`导入成功，共恢复 ${Object.keys(records).length} 条记录`);
+      setFeedback(
+        `导入成功，共恢复 ${Object.keys(nextState.records).length} 条记录`,
+      );
       navigator.vibrate?.(18);
     } catch {
       setSecondaryOpen(false);
@@ -1581,6 +1756,7 @@ function HomeScreen() {
               return;
             }
             setState({
+              ...state,
               records: {
                 ...state.records,
                 [reasonSheetKey]: {
@@ -1637,7 +1813,7 @@ function HomeScreen() {
             className="confirmation-sheet confirmation-sheet--danger"
             data-testid="reset-confirmation"
           >
-            <p>将清除全部打卡记录与破戒原因，无法撤销。</p>
+            <p>将清除全部打卡记录、破戒原因与封碑记录，无法撤销。</p>
             <button
               className="backup-before-reset"
               type="button"
@@ -1667,7 +1843,7 @@ function HomeScreen() {
 function GalleryScreen() {
   const flow = useFlow();
   const keyboard = useKeyboard();
-  const { today } = useMonument();
+  const { today, state } = useMonument();
   const isActiveScreen = flow.current.id === "gallery";
 
   return (
@@ -1700,12 +1876,15 @@ function GalleryScreen() {
             {cycleMonths.map((month) => {
               const stateForMonth = getMonthState(month, today);
               const isFuture = stateForMonth === "future";
+              const isSealed = Boolean(state.seals[month.key]);
               return (
                 <button
                   key={month.key}
                   className={`museum-tile ${
                     stateForMonth === "current" ? "is-current" : ""
-                  } ${isFuture ? "is-future" : ""}`}
+                  } ${isFuture ? "is-future" : ""} ${
+                    isSealed ? "is-sealed" : ""
+                  }`}
                   type="button"
                   disabled={isFuture}
                   data-state={stateForMonth}
@@ -1739,8 +1918,10 @@ function GalleryScreen() {
                   <span className="museum-month-label">
                     <strong>{month.label}</strong>
                     <small>
-                      {stateForMonth === "complete"
-                        ? "已完成"
+                      {isSealed
+                        ? "已封碑"
+                        : stateForMonth === "complete"
+                          ? "待封碑"
                         : stateForMonth === "current"
                           ? "进行中"
                           : "尚未开始"}
@@ -1753,7 +1934,7 @@ function GalleryScreen() {
         </section>
 
         <p className="museum-footnote">
-          历史月份仅供回看，不提供补打卡或修改入口。
+          历史月份可在封碑前补记；封存后转为只读史迹。
         </p>
       </main>
     </MobileScroll>
@@ -1766,13 +1947,110 @@ function MonthDetailScreen({ month }: { month: CycleMonth }) {
   const { today, state, setState, setFeedback } = useMonument();
   const stateForMonth = getMonthState(month, today);
   const stats = getMonthStats(month, today, state.records);
+  const seal = state.seals[month.key];
+  const firstMissingDay = Math.max(
+    1,
+    Array.from({ length: month.days }, (_, index) => index + 1).find(
+      (day) => !state.records[`${monthPrefix(month)}${pad(day)}`],
+    ) ?? month.days,
+  );
   const [reasonDay, setReasonDay] = useState<number | null>(null);
+  const [selectedDay, setSelectedDay] = useState(firstMissingDay);
+  const [historyEditing, setHistoryEditing] = useState(false);
+  const [sealPromptOpen, setSealPromptOpen] = useState<boolean>(
+    stateForMonth === "complete" && !seal,
+  );
+  const [unsealConfirmOpen, setUnsealConfirmOpen] = useState(false);
+  const [sealCeremony, setSealCeremony] = useState(false);
   const reasonKey =
     reasonDay === null ? null : `${monthPrefix(month)}${pad(reasonDay)}`;
+  const selectedKey = `${monthPrefix(month)}${pad(selectedDay)}`;
+  const selectedRecord = state.records[selectedKey];
+
+  const writeHistoryRecord = (status: CheckStatus) => {
+    if (stateForMonth !== "complete" || seal) return;
+    keyboard.hide();
+    const previousRecord = state.records[selectedKey];
+    setState({
+      ...state,
+      records: {
+        ...state.records,
+        [selectedKey]: {
+          status,
+          updatedAt: localIsoTimestamp(new Date()),
+          ...(status === "relapse" && previousRecord?.status === "relapse"
+            ? {
+                ...(previousRecord.reasons?.length
+                  ? { reasons: previousRecord.reasons }
+                  : {}),
+                ...(previousRecord.note ? { note: previousRecord.note } : {}),
+              }
+            : {}),
+        },
+      },
+    });
+    setFeedback(
+      `${month.month}月${selectedDay}日已补记为“${statusLabels[status]}”`,
+    );
+    navigator.vibrate?.(status === "success" ? 14 : [16, 24, 16]);
+    if (status === "relapse") {
+      window.setTimeout(() => setReasonDay(selectedDay), 360);
+    }
+  };
+
+  const clearHistoryRecord = () => {
+    if (stateForMonth !== "complete" || seal || !selectedRecord) return;
+    const records = { ...state.records };
+    delete records[selectedKey];
+    setState({ ...state, records });
+    setFeedback(`${month.month}月${selectedDay}日记录已清除`);
+  };
+
+  const sealMonth = () => {
+    if (stateForMonth !== "complete" || seal) return;
+    keyboard.hide();
+    const nextSeal = createMonthSeal(month, state.records);
+    setSealPromptOpen(false);
+    setHistoryEditing(false);
+    setState({
+      ...state,
+      seals: {
+        ...state.seals,
+        [month.key]: nextSeal,
+      },
+    });
+    setSealCeremony(true);
+    navigator.vibrate?.([16, 54, 26]);
+    window.setTimeout(() => setSealCeremony(false), 2500);
+    setFeedback(`${month.year}年${month.month}月已封碑`);
+  };
+
+  const unsealMonth = () => {
+    if (!seal) return;
+    const seals = { ...state.seals };
+    delete seals[month.key];
+    setState({ ...state, seals });
+    setUnsealConfirmOpen(false);
+    setHistoryEditing(true);
+    setFeedback("石碑已启封，修改后请重新封存");
+  };
+
+  const epitaph = seal ? sealEpitaph(seal) : [];
+  const sealedDate = seal
+    ? new Date(seal.sealedAt).toLocaleDateString("zh-CN", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
+    : "";
 
   return (
     <MobileScroll className="gallery-screen">
-      <main className="month-detail" data-testid="month-detail-page">
+      <main
+        className={`month-detail ${sealCeremony ? "is-sealing" : ""}`}
+        data-testid="month-detail-page"
+        data-sealed={Boolean(seal)}
+      >
         <header className="museum-header month-detail-header">
           <button
             className="museum-back"
@@ -1791,21 +2069,38 @@ function MonthDetailScreen({ month }: { month: CycleMonth }) {
             <p>
               {stateForMonth === "current"
                 ? "本月进行中，数据截至今日"
-                : "历史月份 · 只读"}
+                : seal
+                  ? "历史月份 · 已封碑"
+                  : historyEditing
+                    ? "历史月份 · 补记中"
+                    : "历史月份 · 待封碑"}
             </p>
           </div>
         </header>
 
         <section
-          className="detail-stone-wrap"
+          className={`detail-stone-wrap ${
+            sealCeremony ? "is-sealing" : ""
+          }`}
           aria-label={`${month.year}年${month.month}月完整石碑`}
         >
           <StoneFigure
             month={month}
             records={state.records}
-            onInspectRelapse={setReasonDay}
+            interactive={historyEditing && !seal}
+            selectedDay={selectedDay}
+            availableThrough={month.days}
+            onSelectDay={setSelectedDay}
+            onInspectRelapse={!seal && !historyEditing ? setReasonDay : undefined}
             detail
           />
+          {sealCeremony ? (
+            <div className="seal-ceremony-overlay" aria-hidden="true">
+              <i />
+              <i />
+              <i />
+            </div>
+          ) : null}
         </section>
 
         <section className="detail-stats-panel" aria-label="当月打卡统计">
@@ -1819,8 +2114,134 @@ function MonthDetailScreen({ month }: { month: CycleMonth }) {
           </p>
         </section>
 
+        {historyEditing && !seal ? (
+          <section
+            className="history-edit-panel"
+            data-testid="history-edit-panel"
+            aria-label="历史月份补记"
+          >
+            <div className="history-edit-heading">
+              <div>
+                <small>正在补记</small>
+                <strong>
+                  {month.month}月{selectedDay}日
+                </strong>
+              </div>
+              <button
+                type="button"
+                onClick={() => setHistoryEditing(false)}
+              >
+                完成
+              </button>
+            </div>
+            <div className="history-edit-actions">
+              <button
+                className={
+                  selectedRecord?.status === "success" ? "is-active" : ""
+                }
+                type="button"
+                onClick={() => writeHistoryRecord("success")}
+              >
+                未破戒
+              </button>
+              <button
+                className={
+                  selectedRecord?.status === "relapse"
+                    ? "is-active is-relapse"
+                    : ""
+                }
+                type="button"
+                onClick={() => writeHistoryRecord("relapse")}
+              >
+                破戒
+              </button>
+              <button
+                className="history-clear"
+                type="button"
+                disabled={!selectedRecord}
+                onClick={clearHistoryRecord}
+              >
+                清除
+              </button>
+            </div>
+          </section>
+        ) : null}
+
+        {stateForMonth === "complete" && !seal && !historyEditing ? (
+          <section className="seal-entry-panel" data-testid="seal-entry-panel">
+            <div>
+              <small>此月已尽</small>
+              <strong>补全记录后，将它封存为一块史迹。</strong>
+            </div>
+            <div>
+              <button type="button" onClick={() => setHistoryEditing(true)}>
+                补记本月
+              </button>
+              <button
+                className="seal-primary-action"
+                type="button"
+                onClick={() => setSealPromptOpen(true)}
+              >
+                封存本月
+              </button>
+            </div>
+          </section>
+        ) : null}
+
+        {seal ? (
+          <section className="sealed-record" data-testid="sealed-record">
+            <span className="seal-emblem" aria-hidden="true">
+              封
+            </span>
+            <div className="seal-epitaph">
+              {epitaph.map((line) => (
+                <p key={line}>{line}</p>
+              ))}
+            </div>
+            <dl className="seal-summary">
+              <div>
+                <dt>最长连续</dt>
+                <dd>{seal.summary.longestStreak} 日</dd>
+              </div>
+              <div>
+                <dt>常见诱因</dt>
+                <dd>
+                  {seal.summary.topReasons.length
+                    ? seal.summary.topReasons
+                        .map((reason) => relapseReasonMeta[reason].shortLabel)
+                        .join(" · ")
+                    : "未记录"}
+                </dd>
+              </div>
+              <div>
+                <dt>草木档位</dt>
+                <dd>
+                  {seal.summary.vegetationLevel} ·{" "}
+                  {
+                    levelMeta[
+                      seal.summary
+                        .vegetationLevel as keyof typeof levelMeta
+                    ].label
+                  }
+                </dd>
+              </div>
+              <div>
+                <dt>封碑日期</dt>
+                <dd>{sealedDate}</dd>
+              </div>
+            </dl>
+            <button
+              className="unseal-action"
+              type="button"
+              onClick={() => setUnsealConfirmOpen(true)}
+            >
+              启封修改
+            </button>
+          </section>
+        ) : null}
+
         <RelapseReasonSheet
-          open={reasonDay !== null}
+          open={reasonDay !== null && !seal}
           dateLabel={
             reasonDay === null ? "" : `${month.month}月${reasonDay}日`
           }
@@ -1836,6 +2257,7 @@ function MonthDetailScreen({ month }: { month: CycleMonth }) {
               return;
             }
             setState({
+              ...state,
               records: {
                 ...state.records,
                 [reasonKey]: {
@@ -1850,6 +2272,56 @@ function MonthDetailScreen({ month }: { month: CycleMonth }) {
             setFeedback("诱因记录已更新");
           }}
         />
+
+        <AppSheet
+          open={sealPromptOpen && stateForMonth === "complete" && !seal}
+          onOpenChange={setSealPromptOpen}
+          title="此月已尽，是否封碑留存？"
+          description="封碑后转为只读；需要时仍可启封修改。"
+          compact
+        >
+          <div className="seal-prompt" data-testid="seal-prompt">
+            <MonthStatsRow stats={stats} className="month-stats--compact" />
+            <div className="seal-prompt-actions">
+              <button
+                type="button"
+                onClick={() => {
+                  setSealPromptOpen(false);
+                  setHistoryEditing(true);
+                }}
+              >
+                先补记
+              </button>
+              <button type="button" onClick={() => setSealPromptOpen(false)}>
+                暂不封碑
+              </button>
+              <button
+                className="seal-primary-action"
+                type="button"
+                onClick={sealMonth}
+              >
+                封存本月
+              </button>
+            </div>
+          </div>
+        </AppSheet>
+
+        <AppSheet
+          open={unsealConfirmOpen}
+          onOpenChange={setUnsealConfirmOpen}
+          title="启封这块月碑？"
+          description="启封后可补记或修改；原碑文会失效，完成后需重新封碑。"
+          compact
+        >
+          <div className="unseal-confirmation" data-testid="unseal-confirmation">
+            <button type="button" onClick={() => setUnsealConfirmOpen(false)}>
+              取消
+            </button>
+            <button type="button" onClick={unsealMonth}>
+              确认启封
+            </button>
+          </div>
+        </AppSheet>
       </main>
     </MobileScroll>
   );
