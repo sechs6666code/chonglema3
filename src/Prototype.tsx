@@ -830,7 +830,6 @@ function StoneFigure({
           </div>
         ) : null}
       </div>
-      <div className="stone-foreground" aria-hidden="true" />
     </div>
   );
 }
