@@ -450,46 +450,6 @@ html[data-pwa-standalone="true"] .pwa-install-action {
   inset: 0;
 }
 
-.stone-foreground {
-  position: absolute;
-  z-index: 4;
-  right: -10%;
-  bottom: -1px;
-  left: -10%;
-  height: 8%;
-  background-position: 50% 100%;
-  background-size: 155% auto;
-  filter: brightness(0.82) saturate(0.9) blur(0.15px);
-  mask-image: linear-gradient(
-    180deg,
-    transparent 0%,
-    rgba(0, 0, 0, 0.2) 22%,
-    #000 62%
-  );
-  opacity: 0.86;
-  pointer-events: none;
-}
-
-.monument-app[data-level="1"] .stone-foreground {
-  background-image: url("/assets/scene/source/level-1-wilted.jpg");
-}
-
-.monument-app[data-level="2"] .stone-foreground {
-  background-image: url("/assets/scene/source/level-2-sparse.jpg");
-}
-
-.monument-app[data-level="3"] .stone-foreground {
-  background-image: url("/assets/scene/source/level-3-normal.jpg");
-}
-
-.monument-app[data-level="4"] .stone-foreground {
-  background-image: url("/assets/scene/source/level-4-lush.jpg");
-}
-
-.monument-app[data-level="5"] .stone-foreground {
-  background-image: url("/assets/scene/source/level-5-blooming.jpg");
-}
-
 .date-mark {
   position: absolute;
   z-index: 2;
