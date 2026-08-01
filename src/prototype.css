@@ -1022,24 +1022,6 @@ html[data-pwa-standalone="true"] .pwa-install-action {
   opacity: 0.42;
 }
 
-.clear-record {
-  display: inline-grid;
-  min-height: 26px;
-  margin: 0;
-  padding: 0 10px;
-  place-items: center;
-  border: 0;
-  background: transparent;
-  color: rgba(225, 214, 190, 0.54);
-  font-family: inherit;
-  font-size: 10px;
-}
-
-.clear-record:disabled {
-  opacity: 0;
-  pointer-events: none;
-}
-
 .panel-utilities,
 .readonly-utilities {
   display: flex;
@@ -1050,9 +1032,10 @@ html[data-pwa-standalone="true"] .pwa-install-action {
   margin-top: 3px;
 }
 
-.history-entry {
+.history-entry,
+.leaderboard-entry {
   min-height: 29px;
-  padding: 0 5px 0 12px;
+  padding: 0 5px;
   border: 0;
   background: transparent;
   color: rgba(224, 197, 138, 0.78);
@@ -1062,7 +1045,8 @@ html[data-pwa-standalone="true"] .pwa-install-action {
   letter-spacing: 0.14em;
 }
 
-.history-entry::after {
+.history-entry::after,
+.leaderboard-entry::after {
   display: inline-block;
   margin-left: 5px;
   color: rgba(224, 197, 138, 0.5);
@@ -1071,12 +1055,13 @@ html[data-pwa-standalone="true"] .pwa-install-action {
   transform: translateY(0.5px);
 }
 
-.history-entry:active {
+.history-entry:active,
+.leaderboard-entry:active {
   color: #ead3a4;
 }
 
 .history-entry:focus-visible,
-.clear-record:focus-visible,
+.leaderboard-entry:focus-visible,
 .museum-back:focus-visible,
 .museum-tile:focus-visible {
   outline: 2px solid rgba(202, 166, 99, 0.72);
