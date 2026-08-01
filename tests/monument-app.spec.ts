@@ -43,6 +43,19 @@ test("home menu exposes PWA install guidance", async ({ page }) => {
   await expect(guide).toHaveCount(0);
 });
 
+test("leaderboard is available from both the check-in card and menu", async ({
+  page,
+}) => {
+  await expect(
+    page.getByRole("button", { name: "排行榜", exact: true }),
+  ).toBeVisible();
+
+  await page.getByRole("button", { name: "打开更多选项" }).click();
+  await expect(
+    page.getByRole("button", { name: /线上排行/ }),
+  ).toBeVisible();
+});
+
 test("online leaderboard is opt-in, derives both longest streaks, and can be left", async ({
   page,
 }) => {
@@ -83,8 +96,7 @@ test("online leaderboard is opt-in, derives both longest streaks, and can be lef
   });
   await page.reload();
 
-  await page.getByRole("button", { name: "打开更多选项" }).click();
-  await page.getByRole("button", { name: /线上排行/ }).click();
+  await page.getByRole("button", { name: "排行榜", exact: true }).click();
   const ranking = page.getByTestId("leaderboard-page");
   await expect(ranking).toBeVisible();
   await expect(ranking.getByText("保持私密")).toBeVisible();
