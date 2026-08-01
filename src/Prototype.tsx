@@ -104,6 +104,30 @@ type MonthStats = {
   scopeDays: number;
 };
 
+type LeaderboardPreferences = {
+  ownerToken: string;
+  publicId: string;
+  isPublic: boolean;
+};
+
+type LeaderboardEntry = {
+  publicId: string;
+  days: number;
+  rank: number;
+  updatedAt: string;
+};
+
+type LeaderboardData = {
+  ninja: LeaderboardEntry[];
+  rush: LeaderboardEntry[];
+  generatedAt: string;
+};
+
+type LeaderboardStreaks = {
+  ninjaDays: number;
+  rushDays: number;
+};
+
 type MonumentContextValue = {
   today: Date;
   state: StoredState;
@@ -115,6 +139,10 @@ type MonumentContextValue = {
 
 const STORAGE_KEY = "stone-checkin-demo-v1";
 const SETTINGS_KEY = "stone-checkin-settings-v1";
+const LEADERBOARD_SETTINGS_KEY = "stone-checkin-leaderboard-v1";
+const LEADERBOARD_PREFERENCES_EVENT = "stone-leaderboard-preferences";
+const LEADERBOARD_API =
+  "https://chonglema-leaderboard-api.sechs6666.chatgpt.site/v1";
 const EXPORT_VERSION = 2;
 const HISTORY_START_YEAR = 2026;
 const HISTORY_START_MONTH = 7;
@@ -178,6 +206,127 @@ function pad(value: number) {
 
 function dateKey(date: Date) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+function nextDateKey(value: string) {
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  date.setUTCDate(date.getUTCDate() + 1);
+  return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(
+    date.getUTCDate(),
+  )}`;
+}
+
+function createOwnerToken() {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return btoa(String.fromCharCode(...bytes))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+}
+
+function createDefaultLeaderboardPreferences(): LeaderboardPreferences {
+  const suffix = Array.from({ length: 4 }, () =>
+    Math.floor(Math.random() * 10),
+  ).join("");
+  return {
+    ownerToken: createOwnerToken(),
+    publicId: `石客${suffix}`,
+    isPublic: false,
+  };
+}
+
+function loadLeaderboardPreferences() {
+  try {
+    const parsed = JSON.parse(
+      window.localStorage.getItem(LEADERBOARD_SETTINGS_KEY) ?? "null",
+    ) as Partial<LeaderboardPreferences> | null;
+    if (
+      parsed &&
+      typeof parsed.ownerToken === "string" &&
+      /^[A-Za-z0-9_-]{24,160}$/.test(parsed.ownerToken) &&
+      typeof parsed.publicId === "string" &&
+      typeof parsed.isPublic === "boolean"
+    ) {
+      return {
+        ownerToken: parsed.ownerToken,
+        publicId: parsed.publicId,
+        isPublic: parsed.isPublic,
+      };
+    }
+  } catch {
+    // A malformed local preference is replaced with a private fresh identity.
+  }
+  return createDefaultLeaderboardPreferences();
+}
+
+function persistLeaderboardPreferences(preferences: LeaderboardPreferences) {
+  window.localStorage.setItem(
+    LEADERBOARD_SETTINGS_KEY,
+    JSON.stringify(preferences),
+  );
+  window.dispatchEvent(new Event(LEADERBOARD_PREFERENCES_EVENT));
+}
+
+function calculateLongestStreaks(
+  records: Record<string, DayRecord>,
+  today: Date,
+): LeaderboardStreaks {
+  let previousKey = "";
+  let previousStatus: CheckStatus | null = null;
+  let running = 0;
+  let ninjaDays = 0;
+  let rushDays = 0;
+  const todayKey = dateKey(today);
+
+  for (const [key, record] of Object.entries(records).sort(([left], [right]) =>
+    left.localeCompare(right),
+  )) {
+    if (key > todayKey) break;
+    const continues =
+      previousStatus === record.status &&
+      previousKey !== "" &&
+      nextDateKey(previousKey) === key;
+    running = continues ? running + 1 : 1;
+    if (record.status === "success") ninjaDays = Math.max(ninjaDays, running);
+    if (record.status === "relapse") rushDays = Math.max(rushDays, running);
+    previousKey = key;
+    previousStatus = record.status;
+  }
+
+  return { ninjaDays, rushDays };
+}
+
+async function fetchLeaderboard(signal?: AbortSignal) {
+  const response = await fetch(`${LEADERBOARD_API}/leaderboard`, {
+    signal,
+    headers: { Accept: "application/json" },
+  });
+  if (!response.ok) throw new Error("排行榜暂时无法读取");
+  return (await response.json()) as LeaderboardData;
+}
+
+async function saveLeaderboardProfile(
+  preferences: LeaderboardPreferences,
+  streaks: LeaderboardStreaks,
+) {
+  const response = await fetch(`${LEADERBOARD_API}/profile`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      ownerToken: preferences.ownerToken,
+      publicId: preferences.publicId,
+      isPublic: preferences.isPublic,
+      ...streaks,
+    }),
+  });
+  const payload = (await response.json().catch(() => null)) as {
+    error?: string;
+  } | null;
+  if (!response.ok) {
+    throw new Error(payload?.error || "排行榜暂时无法更新");
+  }
 }
 
 function localIsoTimestamp(date: Date) {
@@ -1421,6 +1570,12 @@ function HomeScreen() {
     flow.push(galleryScreen);
   };
 
+  const openLeaderboard = () => {
+    keyboard.hide();
+    setSecondaryOpen(false);
+    flow.push(leaderboardScreen);
+  };
+
   const headerLabel = isCurrentMonth
     ? today.toLocaleDateString("zh-CN", {
         month: "long",
@@ -1517,6 +1672,14 @@ function HomeScreen() {
                 aria-label="应用设置"
               >
                 <span className="secondary-section-label">应用</span>
+                <button
+                  className="leaderboard-menu-action"
+                  type="button"
+                  onClick={openLeaderboard}
+                >
+                  <span>线上排行</span>
+                  <small>双榜 · 自愿加入</small>
+                </button>
                 <button
                   className="sound-toggle"
                   type="button"
@@ -1940,6 +2103,250 @@ function GalleryScreen() {
   );
 }
 
+function LeaderboardScreen() {
+  const flow = useFlow();
+  const keyboard = useKeyboard();
+  const { today, state } = useMonument();
+  const isActiveScreen = flow.current.id === "leaderboard";
+  const streaks = useMemo(
+    () => calculateLongestStreaks(state.records, today),
+    [state.records, today],
+  );
+  const [preferences, setPreferences] = useState(loadLeaderboardPreferences);
+  const [publicId, setPublicId] = useState(preferences.publicId);
+  const [joinOnline, setJoinOnline] = useState(preferences.isPublic);
+  const [activeBoard, setActiveBoard] = useState<"ninja" | "rush">("ninja");
+  const [leaderboard, setLeaderboard] = useState<LeaderboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    try {
+      setLeaderboard(await fetchLeaderboard());
+      setMessage("");
+    } catch {
+      setMessage("排行榜暂时无法读取，请稍后重试。");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  const savePreferences = async () => {
+    keyboard.hide();
+    const normalizedId = publicId.trim().normalize("NFC");
+    if (joinOnline && !/^[\p{L}\p{N}_-]{3,16}$/u.test(normalizedId)) {
+      setMessage("匿名 ID 需为 3—16 位中文、字母、数字、下划线或短横线");
+      navigator.vibrate?.(10);
+      return;
+    }
+
+    const nextPreferences: LeaderboardPreferences = {
+      ownerToken: preferences.ownerToken,
+      publicId: normalizedId || preferences.publicId,
+      isPublic: joinOnline,
+    };
+    setSaving(true);
+    setMessage(joinOnline ? "正在加入碑林……" : "正在退出线上排行……");
+    try {
+      await saveLeaderboardProfile(nextPreferences, streaks);
+      persistLeaderboardPreferences(nextPreferences);
+      setPreferences(nextPreferences);
+      setPublicId(nextPreferences.publicId);
+      setMessage(
+        joinOnline
+          ? "已加入线上排行；今后的落刻会自动更新纪录。"
+          : "已退出线上排行；线上资料已删除，本地记录不受影响。",
+      );
+      navigator.vibrate?.(18);
+      try {
+        setLeaderboard(await fetchLeaderboard());
+      } catch {
+        // Saving succeeded; a refresh failure should not reverse the preference.
+      }
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "";
+      setMessage(
+        detail && !/failed to fetch/i.test(detail)
+          ? detail
+          : "排行榜暂时无法更新，请稍后重试。",
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const entries = leaderboard?.[activeBoard] ?? [];
+  const ownId = preferences.isPublic ? preferences.publicId : "";
+  const boardMeta =
+    activeBoard === "ninja"
+      ? {
+          title: "连续未破戒",
+          value: streaks.ninjaDays,
+          empty: "尚无人留下未破戒纪录",
+        }
+      : {
+          title: "连续破戒",
+          value: streaks.rushDays,
+          empty: "尚无人留下破戒纪录",
+        };
+
+  return (
+    <MobileScroll className="leaderboard-screen">
+      <main
+        className="leaderboard-app"
+        data-testid="leaderboard-page"
+        aria-hidden={!isActiveScreen}
+        inert={!isActiveScreen}
+      >
+        <header className="museum-header leaderboard-header">
+          <button
+            className="museum-back"
+            type="button"
+            onClick={() => {
+              keyboard.hide();
+              flow.pop();
+            }}
+          >
+            返回
+          </button>
+          <div>
+            <h1>碑林排行</h1>
+            <p>只见纪录，不见私事</p>
+          </div>
+        </header>
+
+        <section className="leaderboard-privacy-card" aria-label="线上排行设置">
+          <div className="leaderboard-privacy-heading">
+            <div>
+              <span>线上留名</span>
+              <strong>{joinOnline ? "已选择加入" : "保持私密"}</strong>
+            </div>
+            <button
+              className={`leaderboard-switch ${joinOnline ? "is-on" : ""}`}
+              type="button"
+              role="switch"
+              aria-checked={joinOnline}
+              aria-label="加入线上排行"
+              onClick={() => setJoinOnline((joined) => !joined)}
+            >
+              <i />
+            </button>
+          </div>
+
+          <label className="leaderboard-id-field">
+            <span>匿名 ID</span>
+            <KeyboardInput
+              value={publicId}
+              maxLength={16}
+              disabled={!joinOnline || saving}
+              autoComplete="off"
+              spellCheck={false}
+              placeholder="例如：山中石客"
+              onChange={(event) => setPublicId(event.currentTarget.value)}
+            />
+          </label>
+
+          <dl className="leaderboard-local-records">
+            <div>
+              <dt>最长未破戒</dt>
+              <dd>{streaks.ninjaDays}<small>天</small></dd>
+            </div>
+            <div>
+              <dt>最长破戒</dt>
+              <dd>{streaks.rushDays}<small>天</small></dd>
+            </div>
+          </dl>
+
+          <p className="leaderboard-privacy-note">
+            仅上传匿名 ID、参榜状态和两项最长连续天数；每日记录、诱因与备注始终留在本机。
+          </p>
+          <button
+            className="leaderboard-save"
+            type="button"
+            disabled={saving}
+            onClick={() => void savePreferences()}
+          >
+            {saving ? "正在保存" : joinOnline ? "保存并加入" : "确认退出排行"}
+          </button>
+          {message ? (
+            <p className="leaderboard-message" role="status">
+              {message}
+            </p>
+          ) : null}
+        </section>
+
+        <section className="leaderboard-board" aria-label="线上排行榜">
+          <div className="leaderboard-tabs" role="tablist" aria-label="选择榜单">
+            <button
+              className={activeBoard === "ninja" ? "is-active" : ""}
+              type="button"
+              role="tab"
+              aria-selected={activeBoard === "ninja"}
+              onClick={() => setActiveBoard("ninja")}
+            >
+              未破戒榜
+            </button>
+            <button
+              className={activeBoard === "rush" ? "is-active" : ""}
+              type="button"
+              role="tab"
+              aria-selected={activeBoard === "rush"}
+              onClick={() => setActiveBoard("rush")}
+            >
+              破戒榜
+            </button>
+          </div>
+
+          <div className="leaderboard-board-heading">
+            <div>
+              <span>历史最长连续</span>
+              <h2>{boardMeta.title}</h2>
+            </div>
+            <strong>{boardMeta.value}<small>天 · 本机</small></strong>
+          </div>
+
+          {loading ? (
+            <div className="leaderboard-empty">正在读取碑林……</div>
+          ) : entries.length ? (
+            <ol className="leaderboard-list">
+              {entries.map((entry) => (
+                <li
+                  key={`${activeBoard}-${entry.publicId}`}
+                  className={entry.publicId === ownId ? "is-self" : ""}
+                >
+                  <span className={`leaderboard-rank rank-${entry.rank}`}>
+                    {entry.rank <= 3 ? ["Ⅰ", "Ⅱ", "Ⅲ"][entry.rank - 1] : entry.rank}
+                  </span>
+                  <span className="leaderboard-name">
+                    {entry.publicId}
+                    {entry.publicId === ownId ? <small>我</small> : null}
+                  </span>
+                  <strong>{entry.days}<small>天</small></strong>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <div className="leaderboard-empty">{boardMeta.empty}</div>
+          )}
+
+          <footer className="leaderboard-board-footer">
+            <span>漏记会中断连续天数</span>
+            <button type="button" disabled={loading} onClick={() => void refresh()}>
+              刷新
+            </button>
+          </footer>
+        </section>
+      </main>
+    </MobileScroll>
+  );
+}
+
 function MonthDetailScreen({ month }: { month: CycleMonth }) {
   const flow = useFlow();
   const keyboard = useKeyboard();
@@ -2336,11 +2743,47 @@ const galleryScreen: FlowScreen = {
   render: () => <GalleryScreen />,
 };
 
+const leaderboardScreen: FlowScreen = {
+  id: "leaderboard",
+  render: () => <LeaderboardScreen />,
+};
+
 function createDetailScreen(month: CycleMonth): FlowScreen {
   return {
     id: `month-${month.key}`,
     render: () => <MonthDetailScreen month={month} />,
   };
+}
+
+function LeaderboardSync() {
+  const { today, state } = useMonument();
+  const [preferences, setPreferences] = useState(loadLeaderboardPreferences);
+  const streaks = useMemo(
+    () => calculateLongestStreaks(state.records, today),
+    [state.records, today],
+  );
+
+  useEffect(() => {
+    const reload = () => setPreferences(loadLeaderboardPreferences());
+    window.addEventListener(LEADERBOARD_PREFERENCES_EVENT, reload);
+    window.addEventListener("storage", reload);
+    return () => {
+      window.removeEventListener(LEADERBOARD_PREFERENCES_EVENT, reload);
+      window.removeEventListener("storage", reload);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!preferences.isPublic) return;
+    const timer = window.setTimeout(() => {
+      void saveLeaderboardProfile(preferences, streaks).catch(() => {
+        // Online sync is best-effort; local recording must never be blocked.
+      });
+    }, 700);
+    return () => window.clearTimeout(timer);
+  }, [preferences, streaks]);
+
+  return null;
 }
 
 export default function Prototype() {
@@ -2377,6 +2820,7 @@ export default function Prototype() {
   return (
     <MonumentContext.Provider value={contextValue}>
       <FlowStack initial={homeScreen} />
+      <LeaderboardSync />
       <PwaManager />
     </MonumentContext.Provider>
   );

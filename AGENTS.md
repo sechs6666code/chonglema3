@@ -28,6 +28,8 @@ The showroom preserves a museum-display feeling rather than a settings grid: use
 
 Local data backup and restore belong in the home screen's top-right “⋮” disclosure, never in the showroom. Keep “导出备份” and “导入备份” as direct utility rows in that small panel; importing replaces all local records and seals after explicit confirmation, then lets every derived view recalculate from the imported raw records. Month seals are immutable summary snapshots keyed by `YYYY-MM`: any confirmed unseal invalidates the old summary and requires a new seal after editing. Continue accepting legacy backups that contain records only.
 
+Online ranking is strictly opt-in and private by default. Its two boards rank the longest calendar-contiguous success and relapse runs; missing dates break a run. Upload only the user's self-chosen anonymous ID, participation state, and the two derived day counts. Never upload day-level records, relapse reasons, notes, seals, or backup contents. Leaving the ranking must delete the remote profile without changing local records. Keep the ranking identity outside the raw-record backup format, and synchronize best-effort so network failure never blocks or reverses a local carving.
+
 Before planning or implementing any mobile-app change, read this `AGENTS.md` in full. It is the source of truth for the template's runtime and component guidance.
 
 Before making substantial visual changes, use the Product Design plugin's `get-context` skill when the visual source is unclear or no longer matches the current goal. When the user gives durable prototype-specific design feedback, preferences, or decisions, record them in `AGENTS.md`.
