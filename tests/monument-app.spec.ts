@@ -43,6 +43,76 @@ test("home menu exposes PWA install guidance", async ({ page }) => {
   await expect(guide).toHaveCount(0);
 });
 
+test("online leaderboard is opt-in, derives both longest streaks, and can be left", async ({
+  page,
+}) => {
+  const profileWrites: Array<Record<string, unknown>> = [];
+  await page.route("**/v1/leaderboard", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        ninja: [{ publicId: "旧友", days: 8, rank: 1, updatedAt: "2026-07-28" }],
+        rush: [{ publicId: "石客", days: 4, rank: 1, updatedAt: "2026-07-28" }],
+        generatedAt: "2026-07-28T00:00:00Z",
+      }),
+    });
+  });
+  await page.route("**/v1/profile", async (route) => {
+    profileWrites.push(route.request().postDataJSON());
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ profile: { saved: true } }),
+    });
+  });
+  await page.evaluate(() => {
+    localStorage.setItem(
+      "stone-checkin-demo-v1",
+      JSON.stringify({
+        records: {
+          "2026-07-10": { status: "relapse" },
+          "2026-07-11": { status: "relapse" },
+          "2026-07-25": { status: "success" },
+          "2026-07-26": { status: "success" },
+          "2026-07-27": { status: "success" },
+        },
+        seals: {},
+      }),
+    );
+  });
+  await page.reload();
+
+  await page.getByRole("button", { name: "打开更多选项" }).click();
+  await page.getByRole("button", { name: /线上排行/ }).click();
+  const ranking = page.getByTestId("leaderboard-page");
+  await expect(ranking).toBeVisible();
+  await expect(ranking.getByText("保持私密")).toBeVisible();
+  await expect(ranking.getByText("3天")).toBeVisible();
+  await expect(ranking.getByText("2天")).toBeVisible();
+  await expect(ranking.getByText("旧友")).toBeVisible();
+
+  await ranking.getByRole("switch", { name: "加入线上排行" }).click();
+  await ranking.getByLabel("匿名 ID").fill("山中石客");
+  await ranking.getByRole("button", { name: "保存并加入" }).click();
+  await expect(ranking.getByText(/已加入线上排行/)).toBeVisible();
+  expect(profileWrites.at(-1)).toMatchObject({
+    publicId: "山中石客",
+    isPublic: true,
+    ninjaDays: 3,
+    rushDays: 2,
+  });
+
+  await ranking.getByRole("switch", { name: "加入线上排行" }).click();
+  await ranking.getByRole("button", { name: "确认退出排行" }).click();
+  await expect(ranking.getByText(/线上资料已删除/)).toBeVisible();
+  expect(profileWrites.at(-1)).toMatchObject({ isPublic: false });
+  const localRecords = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("stone-checkin-demo-v1") ?? "{}").records,
+  );
+  expect(Object.keys(localRecords)).toHaveLength(5);
+});
+
 test("relapse carving opens optional reason capture and persists metadata", async ({
   page,
 }) => {
