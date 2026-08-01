@@ -1208,6 +1208,14 @@ function HistoryEntry({ onClick }: { onClick: () => void }) {
   );
 }
 
+function LeaderboardEntry({ onClick }: { onClick: () => void }) {
+  return (
+    <button className="leaderboard-entry" type="button" onClick={onClick}>
+      排行榜
+    </button>
+  );
+}
+
 function HomeScreen() {
   const flow = useFlow();
   const keyboard = useKeyboard();
@@ -1436,19 +1444,6 @@ function HomeScreen() {
     }
 
     commitRecord(status);
-  };
-
-  const clearSelectedRecord = () => {
-    if (!isCurrentMonth || !selectedStatus) return;
-    keyboard.hide();
-    const records = { ...state.records };
-    delete records[selectedKey];
-    const nextLevel = calculateLevel(records);
-    setState({ ...state, records });
-    setPanelCollapsed(false);
-    setFeedback(
-      `已清除第 ${selectedDay} 日记录 · 档位 ${currentLevel} → ${nextLevel}`,
-    );
   };
 
   const resetDemo = () => {
@@ -1847,14 +1842,7 @@ function HomeScreen() {
               </div>
 
               <div className="panel-utilities">
-                <button
-                  className="clear-record"
-                  type="button"
-                  disabled={!selectedStatus}
-                  onClick={clearSelectedRecord}
-                >
-                  清除本日记录
-                </button>
+                <LeaderboardEntry onClick={openLeaderboard} />
                 <HistoryEntry onClick={openGallery} />
               </div>
             </div>
