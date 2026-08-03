@@ -150,10 +150,10 @@ addText('NO.1 BEDROOM - APPROX.', 690, 2200, 160, 0, textLayer);
 addText('CLEAR AREA APPROX. 11.32 SQ.M', 520, 1950, 110, 0, textLayer);
 addText('UNIT: mm / FOR FURNITURE LAYOUT ONLY', 380, 1750, 90, 0, textLayer);
 
-const target = new Uint8Array(16 * 1024 * 1024);
+const target = new ArrayBuffer(16 * 1024 * 1024);
 const writer = new DwgWriter(target, doc);
 writer.write();
-const dwgBytes = target.slice(0, writer.bytesWritten);
+const dwgBytes = new Uint8Array(target, 0, writer.bytesWritten).slice();
 
 if (dwgBytes.length < 1000) {
   throw new Error(`DWG output is unexpectedly small: ${dwgBytes.length} bytes`);
@@ -163,6 +163,10 @@ const dwgPath = path.join(outputDir, '次卧一_概略空房图_AC1015.dwg');
 fs.writeFileSync(dwgPath, dwgBytes);
 
 const signature = Buffer.from(dwgBytes.slice(0, 6)).toString('ascii');
+if (signature !== 'AC1015') {
+  throw new Error(`Unexpected DWG signature: ${JSON.stringify(signature)}`);
+}
+
 const manifest = {
   file: path.basename(dwgPath),
   signature,
