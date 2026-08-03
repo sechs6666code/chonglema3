@@ -34,12 +34,24 @@ const windowLayer = createLayer('A-WINDOW', 4);
 const dimLayer = createLayer('A-DIM', 2);
 const textLayer = createLayer('A-TEXT', 7);
 
+function registerEntity(entity) {
+  if (typeof doc.modelSpace.addEntity === 'function') {
+    doc.modelSpace.addEntity(entity);
+    return;
+  }
+  if (doc.modelSpace.entities && typeof doc.modelSpace.entities.add === 'function') {
+    doc.modelSpace.entities.add(entity);
+    return;
+  }
+  throw new Error(`Unable to add entity to model space. Keys: ${Object.keys(doc.modelSpace).join(', ')}`);
+}
+
 function addLine(x1, y1, x2, y2, layer) {
   const entity = new Line();
   entity.startPoint = new XYZ(x1, y1, 0);
   entity.endPoint = new XYZ(x2, y2, 0);
   entity.layer = layer;
-  doc.modelSpace.addEntity(entity);
+  registerEntity(entity);
   return entity;
 }
 
@@ -53,7 +65,7 @@ function addRect(x1, y1, x2, y2, layer) {
 function addArc(cx, cy, radius, startAngle, endAngle, layer) {
   const entity = new Arc(new XYZ(cx, cy, 0), radius, startAngle, endAngle);
   entity.layer = layer;
-  doc.modelSpace.addEntity(entity);
+  registerEntity(entity);
   return entity;
 }
 
@@ -65,7 +77,7 @@ function addText(value, x, y, height, rotation, layer) {
   entity.height = height;
   entity.rotation = rotation;
   entity.layer = layer;
-  doc.modelSpace.addEntity(entity);
+  registerEntity(entity);
   return entity;
 }
 
