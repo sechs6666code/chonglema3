@@ -7,6 +7,12 @@ on:
     paths:
       - 'tools/generate-room-cad.mjs'
       - '.github/workflows/generate-room-cad.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'tools/generate-room-cad.mjs'
+      - '.github/workflows/generate-room-cad.yml'
   workflow_dispatch:
 
 jobs:
