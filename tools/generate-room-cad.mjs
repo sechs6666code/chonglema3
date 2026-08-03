@@ -23,7 +23,7 @@ doc.header.measurementUnits = 1;
 function createLayer(name, colorIndex) {
   const layer = new Layer();
   layer.name = name;
-  layer.color = Color.fromColorIndex(colorIndex);
+  layer.color = new Color(colorIndex);
   doc.layers.add(layer);
   return layer;
 }
@@ -76,7 +76,6 @@ function addArrow(x, y, angle, size, layer) {
   addLine(x, y, x + size * Math.cos(a2), y + size * Math.sin(a2), layer);
 }
 
-// Approximate clear internal size taken from the supplied floor-plan photograph.
 const roomWidth = 2830;
 const roomDepth = 4000;
 const sideWall = 200;
@@ -88,31 +87,23 @@ const windowX1 = 275;
 const windowWidth = 2280;
 const windowX2 = windowX1 + windowWidth;
 
-// Side walls.
 addRect(-sideWall, -sideWall, 0, roomDepth + topWall, wallLayer);
 addRect(roomWidth, -sideWall, roomWidth + sideWall, roomDepth + topWall, wallLayer);
-
-// Bottom wall with an 800 mm door opening.
 addRect(-sideWall, -sideWall, doorX1, 0, wallLayer);
 addRect(doorX2, -sideWall, roomWidth + sideWall, 0, wallLayer);
-
-// Top exterior wall with an approximate 2280 mm window opening.
 addRect(-sideWall, roomDepth, windowX1, roomDepth + topWall, wallLayer);
 addRect(windowX2, roomDepth, roomWidth + sideWall, roomDepth + topWall, wallLayer);
 
-// Door leaf and 90-degree swing.
 addLine(doorX1, 0, doorX1, doorWidth, doorLayer);
 addArc(doorX1, 0, doorWidth, 0, Math.PI / 2, doorLayer);
 addLine(doorX1, -35, doorX1, 35, doorLayer);
 addLine(doorX2, -35, doorX2, 35, doorLayer);
 
-// Window frame, represented by two parallel frame lines and jambs.
 addLine(windowX1, roomDepth + 75, windowX2, roomDepth + 75, windowLayer);
 addLine(windowX1, roomDepth + 175, windowX2, roomDepth + 175, windowLayer);
 addLine(windowX1, roomDepth, windowX1, roomDepth + topWall, windowLayer);
 addLine(windowX2, roomDepth, windowX2, roomDepth + topWall, windowLayer);
 
-// Horizontal overall clear dimension (2830).
 const widthDimY = -520;
 addLine(0, -250, 0, widthDimY - 60, dimLayer);
 addLine(roomWidth, -250, roomWidth, widthDimY - 60, dimLayer);
@@ -121,7 +112,6 @@ addArrow(0, widthDimY, 0, 75, dimLayer);
 addArrow(roomWidth, widthDimY, Math.PI, 75, dimLayer);
 addText(String(roomWidth), roomWidth / 2 - 150, widthDimY + 45, 120, 0, dimLayer);
 
-// Vertical overall clear dimension (4000).
 const depthDimX = -520;
 addLine(-250, 0, depthDimX - 60, 0, dimLayer);
 addLine(-250, roomDepth, depthDimX - 60, roomDepth, dimLayer);
@@ -130,7 +120,6 @@ addArrow(depthDimX, 0, Math.PI / 2, 75, dimLayer);
 addArrow(depthDimX, roomDepth, -Math.PI / 2, 75, dimLayer);
 addText(String(roomDepth), depthDimX - 45, roomDepth / 2 - 160, 120, Math.PI / 2, dimLayer);
 
-// Window clear width dimension.
 const windowDimY = roomDepth + topWall + 250;
 addLine(windowX1, roomDepth + topWall + 30, windowX1, windowDimY + 60, dimLayer);
 addLine(windowX2, roomDepth + topWall + 30, windowX2, windowDimY + 60, dimLayer);
@@ -139,14 +128,12 @@ addArrow(windowX1, windowDimY, 0, 60, dimLayer);
 addArrow(windowX2, windowDimY, Math.PI, 60, dimLayer);
 addText(String(windowWidth), (windowX1 + windowX2) / 2 - 130, windowDimY + 40, 105, 0, dimLayer);
 
-// Door clear width dimension.
 const doorDimY = -330;
 addLine(doorX1, doorDimY, doorX2, doorDimY, dimLayer);
 addArrow(doorX1, doorDimY, 0, 55, dimLayer);
 addArrow(doorX2, doorDimY, Math.PI, 55, dimLayer);
 addText(String(doorWidth), (doorX1 + doorX2) / 2 - 90, doorDimY + 30, 90, 0, dimLayer);
 
-// Minimal ASCII notes to maximize compatibility with legacy DWG code pages.
 addText('NO.1 BEDROOM - APPROX.', 690, 2200, 160, 0, textLayer);
 addText('CLEAR AREA APPROX. 11.32 SQ.M', 520, 1950, 110, 0, textLayer);
 addText('UNIT: mm / FOR FURNITURE LAYOUT ONLY', 380, 1750, 90, 0, textLayer);
