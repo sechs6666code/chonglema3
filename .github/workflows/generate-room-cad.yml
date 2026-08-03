@@ -1,0 +1,47 @@
+name: Generate approximate room CAD
+
+on:
+  push:
+    branches:
+      - tmp-cad-room-20260803
+    paths:
+      - 'tools/generate-room-cad.mjs'
+      - '.github/workflows/generate-room-cad.yml'
+  workflow_dispatch:
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install CAD writer and generate DWG
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/cadgen
+          mkdir -p /tmp/cadgen
+          cd /tmp/cadgen
+          npm init -y >/dev/null
+          npm install @node-projects/acad-ts@2.4.0 --no-audit --no-fund
+          cp "$GITHUB_WORKSPACE/tools/generate-room-cad.mjs" ./generate-room-cad.mjs
+          node ./generate-room-cad.mjs "$GITHUB_WORKSPACE/cad-output"
+          file "$GITHUB_WORKSPACE/cad-output/次卧一_概略空房图_AC1015.dwg"
+          head -c 6 "$GITHUB_WORKSPACE/cad-output/次卧一_概略空房图_AC1015.dwg"
+
+      - name: Upload CAD artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: room-cad-delivery
+          path: cad-output/*
+          if-no-files-found: error
+          retention-days: 1
